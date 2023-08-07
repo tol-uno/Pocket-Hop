@@ -3,15 +3,17 @@ let airAcceleration = 0.1;
 let gravity = 0.05;
 let prevDateNow;
 
+var midX = 0;
+var midY = 0;
 
 function startGame() { // Called on page load in HMTL
 
-    canvasArea.start();
-
     touchHandler = new InputHandler;
-    player = new Player(100, 80);
-}
+    player = new Player(60 + 75, 150);
+    map = new Map();
+    map.start("original"); // canvasArea.start(); is called here 
 
+}
 
 
 var canvasArea = { //Canvas Object
@@ -20,6 +22,11 @@ var canvasArea = { //Canvas Object
     start : function() { // EXECUTED BY startGame()
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+
+        midX = canvasArea.canvas.width / 2;
+        midY = canvasArea.canvas.height / 2;
+
+
         this.ctx = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
         
@@ -35,10 +42,104 @@ var canvasArea = { //Canvas Object
         console.log("resized");
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        player.speed = 0;
+        player.restart();
+        UserInterface.restartTimer();
     }
 }
 
+
+var UserInterface = {
+    
+    timer : 0,
+    timerStart : Date.now(),
+
+    update : function() {
+        this.timer = Date.now() - this.timerStart;
+    },
+
+    restartTimer : function() {
+        this.timer = 0;
+        this.timerStart = Date.now();
+    },
+
+    render : function(dt) {
+
+        // DRAWING DEBUG TEXT
+        var textX = 10
+        canvasArea.ctx.font = "15px sans-serif";
+
+        canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, textX, 60);
+        canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
+        canvasArea.ctx.fillText("delta time: " + Math.round(dt), textX, 100);
+        canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
+        canvasArea.ctx.fillText("angle: " + player.angle, textX, 140);
+        canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
+        canvasArea.ctx.fillText("jumpValue: " + player.jumpValue, textX, 180);
+    }
+}
+
+
+class Map {
+    platforms = [];
+
+    start(name) {
+
+        // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
+        async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
+            let url = "assets/maps/" + name + ".json";
+            try {
+                let res = await fetch(url);
+                return await res.json();
+            } catch (error) {
+                console.log(error);
+            }
+        }
+
+
+        // LOOP THROUGH JSON DATA AND ADD NEW PLATFORM OBJECTS
+        async function parsePlatforms() {
+            let jsonData = await getJsonData(); // SEE ABOVE ^^
+
+            var platforms = [];
+
+            jsonData.platforms.forEach(platform => { // LOOP THROUGH DATA AND ADD EACH PLATFORM TO AN ARRAY
+                platforms.push(platform);
+            });
+
+            return platforms;
+        }
+
+        parsePlatforms().then(value => { // WAITS FOR ASYNC FUNCTION 
+            this.platforms = value;
+            canvasArea.start();
+
+        });
+    }
+
+    update() {
+        // Figure out which platforms are in view
+    }
+
+    render() { // Render the platforms that are in view (all of them rn)
+        const ctx = canvasArea.ctx;
+
+        ctx.save();
+        var border = 7;
+        ctx.translate(-player.x + midX, -player.y + midY);
+
+        this.platforms.forEach(platform => {
+            
+            ctx.fillStyle = "#16b144"  // DRAW PLATFORM WITH BORDER
+            ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            ctx.fillStyle = "#128f38";
+            ctx.fillRect(platform.x + border, platform.y + border, platform.width - border * 2, platform.height - border * 2);
+
+        });
+
+        ctx.restore();
+    }
+
+}
 
 
 class InputHandler {
@@ -76,8 +177,6 @@ class InputHandler {
 }
 
 
-
-// PLAYER CLASS
 class Player {
     angle = 0;
     speed = 0;
@@ -87,24 +186,28 @@ class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
+        this.restartX = x;
+        this.restartY = y;
     }
 
-    redraw(dt) { // DT just getting passed for debug text
-
+    render(dt) { // DT just getting passed for debug text
+        
         const ctx = canvasArea.ctx;
-        // ctx.lineWidth = 5;
-        // ctx.strokeStyle = "#ff0000"
         
         ctx.save(); // Saves the state of the canvas
         
-        ctx.translate(this.x, this.y);
+        ctx.translate(midX, midY);
 
-        // DRAWING SHADOW
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 16, 12, 0, 0, 2 * Math.PI);
-        ctx.closePath();
-        ctx.fillStyle = "#00000040";
-        ctx.fill();
+        // DRAWING SHADOW 
+        ctx.rotate(this.angle * Math.PI/180); // rotating canvas
+
+        ctx.fillStyle = "#00000040" ;
+        var blurValue = player.jumpValue / 16 + 1
+        ctx.filter = "blur(" + blurValue + "px)"; // 40 / 10 + 1-> 5  0 / 10 + 1 -> 1
+        ctx.fillRect(-15, -15, 30, 30)
+        ctx.filter = "none";
+
+        ctx.rotate(-this.angle * Math.PI/180); // RE-rotating canvas
 
 
         // DRAWING PLAYER TOP
@@ -113,8 +216,6 @@ class Player {
         ctx.drawImage(document.getElementById("playerTop"), -16, -16);
 
         ctx.restore();
-
-
 
         // SIDES OF PLAYER
         ctx.save();
@@ -125,10 +226,10 @@ class Player {
         if (-90 < loopedAngle && loopedAngle < 90) { // BOT WALL
             ctx.fillStyle = "#B00C0A";
             ctx.beginPath();
-            ctx.moveTo(this.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.moveTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
         }
@@ -136,10 +237,10 @@ class Player {
         if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
             ctx.fillStyle = "#800908";
             ctx.beginPath();
-            ctx.moveTo(this.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.moveTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
         }
@@ -147,10 +248,10 @@ class Player {
         if (90 < loopedAngle || loopedAngle < -90) { // TOP WALL
             ctx.fillStyle = "#B00C0A";
             ctx.beginPath();
-            ctx.moveTo(this.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.moveTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
         }
@@ -158,10 +259,10 @@ class Player {
         if (-180 < loopedAngle && loopedAngle < 0) { // LEFT WALL
             ctx.fillStyle = "#800908";
             ctx.beginPath();
-            ctx.moveTo(this.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), this.y - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
-            ctx.lineTo(this.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), this.y - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.moveTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
         }
@@ -169,28 +270,21 @@ class Player {
         ctx.restore();
 
 
-        // DRAWING DEBUG TEXT
-        ctx.font = "15px sans-serif";
-        canvasArea.ctx.fillText("angle: " + this.angle, 300, 40);
-        canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, 300, 60);
-        canvasArea.ctx.fillText("fps: " + Math.round(100/dt), 300, 80);
-        canvasArea.ctx.fillText("DT: " + Math.round(dt), 300, 200);
-
-        canvasArea.ctx.fillText("jumpValue: " + this.jumpValue, 300, 100);
-        canvasArea.ctx.fillText("speed: " + this.speed, 300, 120);
-
-
         // STRAFE OPTIMIZER HUD
         var strafeThreshold = 0.9 ** (0.08 * this.speed - 30);
 
         if (Math.abs(touchHandler.dragAmount) < (strafeThreshold * dt)) {
-            ctx.fillStyle = "#FFFFFF";
+            if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) < strafeThreshold * dt * 0.2) {
+                ctx.fillStyle = "#00FF00"; // GREEN
+            } else {
+                ctx.fillStyle = "#FFFFFF"; // WHITE
+            }
         } else {
-            ctx.fillStyle = "#FF0000";
+            ctx.fillStyle = "#FF0000"; // RED
         }
 
-        ctx.fillRect(this.x-8, this.y + 16, 8, 4 * Math.abs(touchHandler.dragAmount)); // YOUR STRAFE
-        ctx.fillRect(this.x +4, this.y + 16, 8, 4 * strafeThreshold * dt); // THRESHOLD
+        ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount)); // YOUR STRAFE
+        ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THRESHOLD
     
     }
 
@@ -224,8 +318,16 @@ class Player {
             return -Math.abs(drag) * airAcceleration;
         }
     }
-}
 
+    restart() {
+        this.x = this.restartX;
+        this.y = this.restartY;
+        this.angle = 0;
+        this.speed = 0;
+        this.jumpValue = 0;
+        this.jumpVelocity = 2;
+    }
+}
 
 
 class Vector {
@@ -269,9 +371,13 @@ function updateGameArea() { // CALLED EVERY FRAME
     
     touchHandler.update();
     player.updatePos(dt);
+    UserInterface.update();
 
     canvasArea.clear();
-    player.redraw(dt);
+    map.render();
+    player.render(dt);
+    UserInterface.render(dt);
+
 }
 
 
