@@ -1,4 +1,4 @@
-let sensitivity = 0.5;
+let sensitivity = 1;
 let airAcceleration = 0.1;
 let gravity = 0.05;
 let prevDateNow;
@@ -40,8 +40,12 @@ var canvasArea = { //Canvas Object
 
     resize : function() {
         console.log("resized");
+
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        midX = canvasArea.canvas.width / 2;
+        midY = canvasArea.canvas.height / 2;
+
         player.restart();
         UserInterface.restartTimer();
     }
@@ -74,13 +78,14 @@ var UserInterface = {
         canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
         canvasArea.ctx.fillText("angle: " + player.angle, textX, 140);
         canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
-        canvasArea.ctx.fillText("jumpValue: " + player.jumpValue, textX, 180);
+        canvasArea.ctx.fillText("renderedPlatforms Count: " + map.renderedPlatforms.length, textX, 180);
     }
 }
 
 
 class Map {
     platforms = [];
+    renderedPlatforms = [];
 
     start(name) {
 
@@ -116,18 +121,31 @@ class Map {
         });
     }
 
-    update() {
-        // Figure out which platforms are in view
+    update() { // Figure out which platforms are in view
+
+        this.renderedPlatforms = [];
+
+        this.platforms.forEach(platform => { // Loop through platforms
+            if (
+                (platform.x + platform.width > player.x - midX) && // left
+                (platform.x < player.x + midX) && // right
+                (platform.y + platform.height > player.y - midY) && // top
+                (platform.y < player.y + midY) // bottom
+            ) {
+                this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
+            }
+
+        });
     }
 
-    render() { // Render the platforms that are in view (all of them rn)
+    render() { // Render the platforms that are in view 
         const ctx = canvasArea.ctx;
 
         ctx.save();
         var border = 7;
-        ctx.translate(-player.x + midX, -player.y + midY);
+        ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
 
-        this.platforms.forEach(platform => {
+        this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS
             
             ctx.fillStyle = "#16b144"  // DRAW PLATFORM WITH BORDER
             ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
@@ -270,11 +288,11 @@ class Player {
         ctx.restore();
 
 
-        // STRAFE OPTIMIZER HUD
-        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30);
+        // STRAFE OPTIMIZER HUD (PUT THIS IN UserInterface object)
+        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
 
-        if (Math.abs(touchHandler.dragAmount) < (strafeThreshold * dt)) {
-            if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) < strafeThreshold * dt * 0.2) {
+        if (Math.abs(touchHandler.dragAmount) < (strafeThreshold * dt)) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
+            if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) < strafeThreshold * dt * 0.4) {
                 ctx.fillStyle = "#00FF00"; // GREEN
             } else {
                 ctx.fillStyle = "#FFFFFF"; // WHITE
@@ -284,7 +302,7 @@ class Player {
         }
 
         ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount)); // YOUR STRAFE
-        ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THRESHOLD
+        ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
     
     }
 
@@ -310,13 +328,18 @@ class Player {
 
     calculateGain(drag, dt) { // COULD MAYBE PUT THIS INSIDE OF updatePos() to avoid having to pass dt
         
-        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // THROW IN DESMOS
+        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both
 
         if (Math.abs(drag) < strafeThreshold * dt) {
             return Math.abs(drag) * airAcceleration;
         } else {
             return -Math.abs(drag) * airAcceleration;
         }
+    }
+
+    checkCollision() {
+        this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS
+        });
     }
 
     restart() {
@@ -369,10 +392,13 @@ function updateGameArea() { // CALLED EVERY FRAME
     var dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
     prevDateNow = Date.now();
     
-    touchHandler.update();
+    // UPDATING OBJECTS
+    touchHandler.update(); 
+    map.update();
     player.updatePos(dt);
     UserInterface.update();
 
+    // RENDERING OBJECTS
     canvasArea.clear();
     map.render();
     player.render(dt);
