@@ -18,10 +18,12 @@
 
     </head>
     
-    <body onload="startGame()">
-        <!-- <h1 id="text1">Text</h1> -->
-        <!-- <canvas id="canvas1"></canvas> -->
-        <button id="fullscreen" onclick="canvasArea.resize()">fullscreen</button>
+    <body onload="startGame()" onresize="canvasArea.resize()">
+
+        
+        <button id="menu" onclick="UserInterface.menuPressed();">MENU</button>
+        <button id="restart" onclick="UserInterface.restartPressed();">RESTART</button>
+        <button id="jump" onclick="userInterface.jumpPressed()">JUMP</button>
 
         <img id="playerTop" src="assets/images/playerTop.jpg" style="display:none;"/>
         

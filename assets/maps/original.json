@@ -1,45 +1,90 @@
 {
+    "playerStart": {
+        "x": 340,
+        "y": 1200,
+        "angle": -90
+    },
+
+    "endZone": {
+        "x": 459,
+        "y": 16,
+        "width": 128,
+        "height": 128,
+        "angle": 0
+    },
+
     "platforms": [
         {
-            "x": 60,
-            "y": 100,
-            "width": 150,
-            "height": 100
+            "x": 459,
+            "y": 16,
+            "width": 128,
+            "height": 128,
+            "angle": 0
         },
 
         {
-            "x": 80,
-            "y": 240,
-            "width": 90,
-            "height": 300
-        },
-    
-        {
-            "x": 260,
-            "y": 140,
-            "width": 200,
-            "height": 40
+            "x": 198,
+            "y": 171,
+            "width": 80,
+            "height": 80,
+            "angle": 0
         },
 
         {
-            "x": 260,
-            "y": 200,
-            "width": 220,
-            "height": 40
+            "x": 157,
+            "y": 373,
+            "width": 160,
+            "height": 64,
+            "angle": 0
         },
 
         {
-            "x": 520,
-            "y": 250,
-            "width": 120,
-            "height": 400
+            "x": 421,
+            "y": 488,
+            "width": 96,
+            "height": 96,
+            "angle": 0
         },
 
         {
-            "x": 300,
-            "y": 400,
-            "width": 200,
-            "height": 200
+            "x": 500,
+            "y": 659,
+            "width": 64,
+            "height": 64,
+            "angle": 0
+        },
+
+        {
+            "x": 336,
+            "y": 736,
+            "width": 80,
+            "height": 128,
+            "angle": 0
+        },
+
+        {
+            "x": 185,
+            "y": 867,
+            "width": 96,
+            "height": 96,
+            "angle": 0
+        },
+
+        {
+            "x": 302,
+            "y": 981,
+            "width": 80,
+            "height": 80,
+            "angle": 0
+        },
+
+        {
+            "x": 316,
+            "y": 1176,
+            "width": 48,
+            "height": 48,
+            "angle": 0
         }
+
     ]
 }

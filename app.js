@@ -9,10 +9,9 @@ var midY = 0;
 function startGame() { // Called on page load in HMTL
 
     touchHandler = new InputHandler;
-    player = new Player(60 + 75, 150);
+    player = null; // Needs to be created by map
     map = new Map();
-    map.start("original"); // canvasArea.start(); is called here 
-
+    map.start("original"); // canvasArea.start(); is called here
 }
 
 
@@ -39,15 +38,13 @@ var canvasArea = { //Canvas Object
     },
 
     resize : function() {
-        console.log("resized");
+        console.log("resized :)");
 
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         midX = canvasArea.canvas.width / 2;
         midY = canvasArea.canvas.height / 2;
 
-        player.restart();
-        UserInterface.restartTimer();
     }
 }
 
@@ -61,15 +58,16 @@ var UserInterface = {
         this.timer = Date.now() - this.timerStart;
     },
 
-    restartTimer : function() {
+    restartPressed : function() {
         this.timer = 0;
         this.timerStart = Date.now();
+        player.restart();
     },
 
     render : function(dt) {
 
         // DRAWING DEBUG TEXT
-        var textX = 10
+        var textX = canvasArea.canvas.width * 0.17; 
         canvasArea.ctx.font = "15px sans-serif";
 
         canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, textX, 60);
@@ -86,6 +84,7 @@ var UserInterface = {
 
 class Map {
     platforms = [];
+    mapData = [];
     renderedPlatforms = [];
 
     start(name) {
@@ -106,17 +105,28 @@ class Map {
         async function parsePlatforms() {
             let jsonData = await getJsonData(); // SEE ABOVE ^^
 
+
+            var playerStart = jsonData.playerStart; // 3 temporary vars that get combined into mapData and pushed out of async function
+            var endZone = jsonData.endZone;
             var platforms = [];
 
             jsonData.platforms.forEach(platform => { // LOOP THROUGH DATA AND ADD EACH PLATFORM TO AN ARRAY
                 platforms.push(platform);
             });
 
-            return platforms;
+            var mapData = [playerStart, endZone, platforms]; // all the data to be sent out from this async function (platforms, player start, end zone)
+
+            return mapData;
         }
 
-        parsePlatforms().then(value => { // WAITS FOR ASYNC FUNCTION 
-            this.platforms = value;
+        parsePlatforms().then(mapData => { // WAITS FOR ASYNC FUNCTION 
+            this.playerStart = mapData[0];
+            this.endZone = mapData[1];
+            this.platforms = mapData[2];
+
+            // console.log(mapData)
+            player = new Player(mapData[0].x, mapData[0].y, mapData[0].angle);
+
             canvasArea.start();
 
         });
@@ -197,19 +207,20 @@ class InputHandler {
 
 
 class Player {
-    angle = 0;
     speed = 0;
     jumpValue = 0;
     jumpVelocity = 2;
 
-    constructor(x, y) {
+    constructor(x, y, angle) {
         this.x = x;
         this.y = y;
         this.restartX = x;
         this.restartY = y;
+        this.angle = angle;
+        this.restartAngle = angle;
     }
 
-    render(dt) { // DT just getting passed for debug text
+    render(dt) { // DT just getting passed for strafe optimizer
         
         const ctx = canvasArea.ctx;
         
@@ -222,7 +233,7 @@ class Player {
 
         ctx.fillStyle = "#00000040" ;
         var blurValue = player.jumpValue / 16 + 1
-        ctx.filter = "blur(" + blurValue + "px)"; // 40 / 10 + 1-> 5  0 / 10 + 1 -> 1
+        ctx.filter = "blur(" + blurValue + "px)";
         ctx.fillRect(-15, -15, 30, 30)
         ctx.filter = "none";
 
@@ -294,8 +305,8 @@ class Player {
         // STRAFE OPTIMIZER HUD (PUT THIS IN UserInterface object)
         var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
 
-        if (Math.abs(touchHandler.dragAmount) < (strafeThreshold * dt)) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
-            if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) < strafeThreshold * dt * 0.4) {
+        if (Math.abs(touchHandler.dragAmount) * sensitivity < (strafeThreshold * dt)) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
+            if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * sensitivity < strafeThreshold * dt * 0.4) {
                 ctx.fillStyle = "#00FF00"; // GREEN
             } else {
                 ctx.fillStyle = "#FFFFFF"; // WHITE
@@ -304,7 +315,7 @@ class Player {
             ctx.fillStyle = "#FF0000"; // RED
         }
 
-        ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount)); // YOUR STRAFE
+        ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * sensitivity); // YOUR STRAFE
         ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
     
     }
@@ -323,8 +334,10 @@ class Player {
         if (this.jumpValue < 0) { // JUMPING
             this.jumpValue = 0;
             this.jumpVelocity = 2;
-            console.log(this.checkCollision())
-             if (!this.checkCollision()) {this.restart()}
+             if (!this.checkCollision()) {
+                // this.restart() taken care of by user interface
+                UserInterface.restartPressed();
+            }
         } else {
             this.jumpValue += this.jumpVelocity * dt;
             this.jumpVelocity -= gravity * dt;
@@ -335,10 +348,10 @@ class Player {
         
         var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both
 
-        if (Math.abs(drag) < strafeThreshold * dt) {
-            return Math.abs(drag) * airAcceleration;
+        if (Math.abs(drag) * sensitivity < strafeThreshold * dt) {
+            return Math.abs(drag) * sensitivity * airAcceleration;
         } else {
-            return -Math.abs(drag) * airAcceleration;
+            return -Math.abs(drag) * sensitivity * airAcceleration;
         }
     }
 
@@ -363,8 +376,6 @@ class Player {
             ]
 
             canvasArea.ctx.fillRect(rectangleStore[0].x, rectangleStore[0].y, rectangleStore[0].width, rectangleStore[0].height)
-            console.log(rectangleStore[0])
-
 
             function workOutNewPoints(cx, cy, vx, vy, rotatedAngle){ //From a rotated object
                 //cx,cy are the centre coordinates, vx,vy is the point to be measured against the center point
@@ -529,8 +540,6 @@ class Player {
                     
                 }else{
                     
-                    // console.log("no collide")
-                    
                     //Because we are working with vertices and edges. This algorithm does not cover the normal un-rotated rectangle
                     //algorithm which just deals with sides
                     if(thisRect.angle === 0 && otherRect.angle === 0){
@@ -547,18 +556,15 @@ class Player {
             }
 
             detectRectangleCollision(platform);
-            
-
-
         
         });
         if (collision > 0) {return true} else {return false}
     }
 
-    restart() {
+    restart() { // Called when player hits water
         this.x = this.restartX;
         this.y = this.restartY;
-        this.angle = 0;
+        this.angle = this.restartAngle;
         this.speed = 0;
         this.jumpValue = 0;
         this.jumpVelocity = 2;
