@@ -1,3 +1,5 @@
+document.addEventListener("deviceready", onDeviceReady, false);
+
 let sensitivity = 1;
 let airAcceleration = 0.1;
 let gravity = 0.05;
@@ -6,7 +8,11 @@ let prevDateNow;
 var midX = 0;
 var midY = 0;
 
-function startGame() { // Called on page load in HMTL
+function onDeviceReady() { // Called on page load in HMTL
+    document.querySelector("body").onresize = function() {canvasArea.resize()};
+    document.getElementById("menu").onclick = function() {UserInterface.menuPressed()};
+    document.getElementById("restart").onclick = function() {UserInterface.restartPressed()};
+    document.getElementById("jump").onclick = function() {UserInterface.jumpPressed()};
 
     touchHandler = new InputHandler;
     player = null; // Needs to be created by map

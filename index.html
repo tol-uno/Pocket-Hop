@@ -7,8 +7,7 @@
 		<title>Pocket Hop</title>
         <meta name="description" content="Mason Powers' Tribute to Bhop" />
 
-        <link rel="stylesheet" type="text/css" href="style.css" />
-        <script  src="app.js"></script>
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
 
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -18,14 +17,16 @@
 
     </head>
     
-    <body onload="startGame()" onresize="canvasArea.resize()">
-
+    <body onload="onDeviceReady()">
         
-        <button id="menu" onclick="UserInterface.menuPressed();">MENU</button>
-        <button id="restart" onclick="UserInterface.restartPressed();">RESTART</button>
-        <button id="jump" onclick="userInterface.jumpPressed()">JUMP</button>
+        <button id="menu">MENU</button>
+        <button id="restart">RESTART</button>
+        <button id="jump">JUMP</button>
 
         <img id="playerTop" src="assets/images/playerTop.jpg" style="display:none;"/>
         
+        <!-- <script src="cordova.js"></script> -->
+        <script  src="js/index.js"></script>
+
     </body>
 </html>
