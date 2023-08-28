@@ -10,27 +10,24 @@ var midY = 0;
 
 function onDeviceReady() { // Called on page load in HMTL
     document.querySelector("body").onresize = function() {canvasArea.resize()};
-    document.getElementById("menu").onclick = function() {UserInterface.menuPressed()};
-    document.getElementById("restart").onclick = function() {UserInterface.restartPressed()};
-    document.getElementById("jump").onclick = function() {UserInterface.jumpPressed()};
 
     touchHandler = new InputHandler;
+    UserInterface.start();
+
     player = null; // Needs to be created by map
-    map = new Map();
-    map.start("original"); // canvasArea.start(); is called here
+    canvasArea.start();
 }
 
 
 var canvasArea = { //Canvas Object
     canvas : document.createElement("canvas"),
     
-    start : function() { // EXECUTED BY startGame()
+    start : function() { // called in deviceReady
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
 
         midX = canvasArea.canvas.width / 2;
         midY = canvasArea.canvas.height / 2;
-
 
         this.ctx = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
@@ -57,33 +54,154 @@ var canvasArea = { //Canvas Object
 
 var UserInterface = {
     
-    timer : 0,
-    timerStart : Date.now(),
+    gamestate : 1,
+    // 1: main menu
+    // 2: level select
+    // 3: settings
+    // 4: store
+    // 5: in level
 
-    update : function() {
-        this.timer = Date.now() - this.timerStart;
+    debugText : true,
+    strafeHUD : true,
+    
+    timer : 0,
+    timerStart : Date.now(), // dont need to pull date here
+    levelStarted : false,
+
+    start : function() {
+
+        // CREATING THE BUTTONS
+        btn_levelSelect = new Button(200, 150, 200, 100, "PLAY", function() { 
+            UserInterface.gamestate = 2;
+            UserInterface.renderedButtons = [btn_level_original]
+        })
+
+        btn_level_original = new Button(100, 50, 100, 80, "Original", function() { 
+            map = new Map("noob");
+            UserInterface.gamestate = 5;
+            UserInterface.renderedButtons = [btn_mainMenu, btn_restart, btn_jump]
+        })
+
+        btn_mainMenu = new Button(30, 40, 80, 60, "menu", function() { 
+            UserInterface.gamestate = 1;
+            UserInterface.timer = 0;
+            UserInterface.levelStarted = false;
+            player = null;
+            map = null;
+            UserInterface.renderedButtons = [btn_levelSelect];
+        })
+
+        btn_restart = new Button(30, 200, 80, 60, "restart", function() { 
+            UserInterface.timer = 0;
+            UserInterface.levelStarted = false;
+            player.restart();
+        })
+
+        btn_jump = new Button(30, 300, 80, 60, "jump", function() { 
+            if (!UserInterface.levelStarted) {
+                UserInterface.timerStart = Date.now();
+                UserInterface.levelStarted = true;
+                player.startLevel();
+            }
+        })
+
+        this.renderedButtons = [btn_levelSelect]; 
+
     },
 
-    restartPressed : function() {
-        this.timer = 0;
-        this.timerStart = Date.now();
-        player.restart();
+    update : function() {
+        if (this.levelStarted) {
+            this.timer = Date.now() - this.timerStart;
+        }
+    },
+
+
+    touchReleased : function(x,y) { // TRIGGERED BY InputHandler
+
+        this.renderedButtons.forEach(button => {
+            if ( // if x and y touch is within button
+                x >= button.x && x <= button.x + button.width &&
+                y >= button.y && y <= button.y + button.height
+            ) {
+                button.pressed();
+            }
+        });
     },
 
     render : function(dt) {
 
-        // DRAWING DEBUG TEXT
-        var textX = canvasArea.canvas.width * 0.17; 
-        canvasArea.ctx.font = "15px sans-serif";
+        this.renderedButtons.forEach(button => { // LOOP RENDERED BUTTONS AND RUN THEIR .render()
+            button.render();
+        });
 
-        canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, textX, 60);
-        canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
-        canvasArea.ctx.fillText("delta time: " + Math.round(dt), textX, 100);
-        canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
-        canvasArea.ctx.fillText("angle: " + player.angle, textX, 140);
-        canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
-        canvasArea.ctx.fillText("renderedPlatforms Count: " + map.renderedPlatforms.length, textX, 180);
-        canvasArea.ctx.fillText("player x: " + player.x, textX, 200);
+        if (this.gamestate == 1) { // Main Menu
+            // not doing anything
+        }
+
+        if (this.gamestate == 5) { // In Level
+
+            if (this.debugText) { // DRAWING DEBUG TEXT
+                var textX = canvasArea.canvas.width * 0.17; 
+                canvasArea.ctx.font = "15px sans-serif";
+                canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
+    
+                canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, textX, 60);
+                canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
+                canvasArea.ctx.fillText("delta time: " + Math.round(dt), textX, 100);
+                canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
+                canvasArea.ctx.fillText("angle: " + player.angle, textX, 140);
+                canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
+                canvasArea.ctx.fillText("renderedPlatforms Count: " + map.renderedPlatforms.length, textX, 180);
+                canvasArea.ctx.fillText("touch x: " + touchHandler.touchX, textX, 200);
+                canvasArea.ctx.fillText("touch y: " + touchHandler.touchY, textX, 220);
+                canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
+                canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
+                
+            }
+    
+    
+            if (this.strafeHUD) { // STRAFE OPTIMIZER HUD
+                var strafeThreshold = 0.9 ** (0.08 * player.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
+    
+                if (Math.abs(touchHandler.dragAmount) * sensitivity < (strafeThreshold * dt)) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
+                    if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * sensitivity < strafeThreshold * dt * 0.4) {
+                        canvasArea.ctx.fillStyle = "#00FF00"; // GREEN
+                    } else {
+                        canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
+                    }
+                } else {
+                    canvasArea.ctx.fillStyle = "#FF0000"; // RED
+                }
+    
+                canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * sensitivity); // YOUR STRAFE
+                canvasArea.ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
+            }
+        }
+    }
+}
+
+
+class Button {
+    constructor(x, y, width, height, image, func) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.image = image
+        this.func = func;
+    }
+
+    render() {
+        canvasArea.ctx.fillStyle = "lightgrey"; 
+        canvasArea.ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // this should be drawing an image not text. text is placholder
+        canvasArea.ctx.fillStyle = "black";
+        canvasArea.ctx.fillText(this.image, this.x + 2, this.y + this.height / 2)
+    }
+
+    pressed() {
+        this.func();
     }
 }
 
@@ -93,20 +211,23 @@ class Map {
     mapData = [];
     renderedPlatforms = [];
 
-    start(name) {
+    constructor(name) {
 
         // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
         async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
-            let url = "assets/maps/" + name + ".json";
+            let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
+            // could eventually be "pockethop.com/maps/original.json"
+            // OLD LOCAL STORAGE url: "assets/maps/" + name + ".json";
+
             try {
-                let res = await fetch(url);
-                return await res.json();
+                let response = await fetch(mapURL);
+                return await response.json();
             } catch (error) {
                 console.log(error);
             }
         }
 
-
+        
         // LOOP THROUGH JSON DATA AND ADD NEW PLATFORM OBJECTS
         async function parsePlatforms() {
             let jsonData = await getJsonData(); // SEE ABOVE ^^
@@ -130,13 +251,10 @@ class Map {
             this.endZone = mapData[1];
             this.platforms = mapData[2];
 
-            // console.log(mapData)
             player = new Player(mapData[0].x, mapData[0].y, mapData[0].angle);
-
-            canvasArea.start();
-
         });
     }
+
 
     update() { // Figure out which platforms are in view
 
@@ -180,30 +298,93 @@ class Map {
 class InputHandler {
     dragAmount = 0;
     previousX = 0;
-    touchX = 0
-    pressing = false;
+    touchX = 0;
+    touchY = 0;
+    dragging = false;
+    touchIDs = []; // first elements are the oldest touches
+    currentDragID = null;
+
+
+    getReferencedTouchID(touchEventsID) { // figures out which object within touchIDs[] the current event is referencing
+        return this.touchIDs.filter(function(touch) { // filter touchIDs to find touch that has ID that matches the event's ID
+            return touch.id == touchEventsID
+        })[0] // result is a filtered array but should only give one match. hense -> [0]
+    }
+
 
     constructor(){
         window.addEventListener("touchstart", e => {
-            this.touchX = e.changedTouches[0].pageX;
-            this.previousX = e.changedTouches[0].pageX;
-            this.pressing = true;
+
+            for (let i = 0; i < e.changedTouches.length; i++){ // for loop needed incase multiple touches are sent in the same frame
+
+                if (this.dragging == false) { // if this should be the new dragging touch
+                    this.currentDragID = e.changedTouches[i].identifier;
+                    this.dragging = true;
+
+                    this.touchX = e.changedTouches[i].pageX;
+                    this.touchY = e.changedTouches[i].pageY;
+                    this.previousX = e.changedTouches[i].pageX;
+
+                }
+            }
         });
 
+
         window.addEventListener("touchmove", e => {
-            this.touchX = e.changedTouches[0].pageX;
+            for (let i = 0; i < e.changedTouches.length; i++){ // for loop needed incase multiple touches are sent in the same frame
+
+                if (e.changedTouches[i].identifier == this.currentDragID) { // if this touch is the dragging touch
+                    this.touchX = e.changedTouches[i].pageX;
+                    this.touchY = e.changedTouches[i].pageY;
+                }
+
+                if (this.dragging == false) { // if main drag is released but theres another to jump to
+                    this.currentDragID = e.changedTouches[i].identifier;
+                }
+            }
+
+        });
+
+
+        window.addEventListener("touchcancel", e => { // Fixes tripple tap bugs by reseting everything
+            this.currentDragID = null;
+            this.dragging = false;
         });
 
         window.addEventListener("touchend", e => {
-            this.dragAmount = 0;
-            this.touchX = 0;
-            this.previousX = 0;
-            this.pressing = false;
+
+            for (let i = 0; i < e.changedTouches.length; i++){ // for loop needed incase multiple touches are sent in the same frame
+
+                if (this.dragging && e.changedTouches[i].identifier == this.currentDragID) { // might not need to check if dragging is true here
+                    
+                    if (e.touches.length == 0) {
+
+                        this.currentDragID = null;
+                        this.dragAmount = 0;
+                        this.touchX = 0;
+                        this.touchY = 0;
+                        this.previousX = 0;
+                        this.dragging = false;
+
+                    } else {
+                        this.currentDragID = e.touches[0].identifier
+                        this.touchX = e.touches[0].pageX;
+                        this.touchY = e.touches[0].pageY;
+                        this.previousX = e.touches[0].pageX;
+                    }
+                }
+
+                UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
+            
+            }
+
+            // if (e.touches.length == 0) {this.currentDragID = null;} // Not Needed?
+
         });
     }
 
     update() {
-        if (this.pressing == true) {
+        if (this.dragging == true) {
             this.dragAmount = this.touchX - this.previousX;
             this.previousX = this.touchX;
         }
@@ -226,7 +407,7 @@ class Player {
         this.restartAngle = angle;
     }
 
-    render(dt) { // DT just getting passed for strafe optimizer
+    render() {
         
         const ctx = canvasArea.ctx;
         
@@ -306,53 +487,41 @@ class Player {
         }
 
         ctx.restore();
-
-
-        // STRAFE OPTIMIZER HUD (PUT THIS IN UserInterface object)
-        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
-
-        if (Math.abs(touchHandler.dragAmount) * sensitivity < (strafeThreshold * dt)) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
-            if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * sensitivity < strafeThreshold * dt * 0.4) {
-                ctx.fillStyle = "#00FF00"; // GREEN
-            } else {
-                ctx.fillStyle = "#FFFFFF"; // WHITE
-            }
-        } else {
-            ctx.fillStyle = "#FF0000"; // RED
-        }
-
-        ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * sensitivity); // YOUR STRAFE
-        ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
     
     }
 
+    startLevel() {
+        this.speed = 85;
+    }
 
     updatePos(dt) {  // NEEDS TO BE FPS INDEPENDENT
-        this.angle += touchHandler.dragAmount * sensitivity; // gain calculation is independent of sensitivity BAD BAD BAD
+        this.angle += touchHandler.dragAmount * sensitivity;
+        // touchHandler.touchIDs[0].dragAmount
 
-        if (this.speed >= 0) { // PREVENTS GOING BACKWARDS
-            this.speed += this.calculateGain(touchHandler.dragAmount, dt);
-        } else {this.speed = 0}
-    
-        this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt; // MOVE FORWARD AT ANGLE BASED ON SPEED
-        this.y += Math.sin(this.angle * (Math.PI / 180)) * this.speed/50 * dt;
-    
-        if (this.jumpValue < 0) { // JUMPING
-            this.jumpValue = 0;
-            this.jumpVelocity = 2;
-             if (!this.checkCollision()) {
-                // this.restart() taken care of by user interface
-                UserInterface.restartPressed();
+        if (UserInterface.levelStarted) {
+            if (this.speed >= 0) { // PREVENTS GOING BACKWARDS
+                this.speed += this.calculateGain(touchHandler.dragAmount, dt);
+            } else {this.speed = 0}
+        
+            this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt; // MOVE FORWARD AT ANGLE BASED ON SPEED
+            this.y += Math.sin(this.angle * (Math.PI / 180)) * this.speed/50 * dt;
+        
+            if (this.jumpValue < 0) { // JUMPING
+                this.jumpValue = 0;
+                this.jumpVelocity = 2;
+                if (!this.checkCollision()) {
+                    btn_restart.pressed();
+                }
+            } else {
+                this.jumpValue += this.jumpVelocity * dt;
+                this.jumpVelocity -= gravity * dt;
             }
-        } else {
-            this.jumpValue += this.jumpVelocity * dt;
-            this.jumpVelocity -= gravity * dt;
         }
     }
 
     calculateGain(drag, dt) { // COULD MAYBE PUT THIS INSIDE OF updatePos() to avoid having to pass dt
         
-        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both
+        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both -- maybe just add as var somwhere
 
         if (Math.abs(drag) * sensitivity < strafeThreshold * dt) {
             return Math.abs(drag) * sensitivity * airAcceleration;
@@ -578,7 +747,7 @@ class Player {
 }
 
 
-class Vector {
+class Vector { // DONT ACTUALLY USE THIS AT ALL
     constructor(x, y) {
       this.x = x;
       this.y = y;
@@ -614,19 +783,27 @@ class Vector {
 
 function updateGameArea() { // CALLED EVERY FRAME
 
-    var dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
-    prevDateNow = Date.now();
     
     // UPDATING OBJECTS
     touchHandler.update(); 
-    map.update();
-    player.updatePos(dt);
     UserInterface.update();
+
+    if (UserInterface.gamestate == 5) {
+        var dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
+        prevDateNow = Date.now();
+
+        map.update();
+        player.updatePos(dt)
+    };
 
     // RENDERING OBJECTS
     canvasArea.clear();
-    map.render();
-    player.render(dt);
+
+    if (UserInterface.gamestate == 5) {
+        map.render();
+        player.render();
+    }
+
     UserInterface.render(dt);
 
 }
