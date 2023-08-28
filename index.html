@@ -14,12 +14,11 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-		<!-- <link rel="icon" type="image/x-icon" href="favicon.ico"> -->
+		<link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
 		<!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=DM Sans:400,700"> -->
 
-
         <!-- Cordova's default header stuff. I added unsafe-inline to default-src (it's needed for testing Live Server and body's onload) -->
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
+        <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;"> -->
         <meta name="format-detection" content="telephone=no">
         <meta name="msapplication-tap-highlight" content="no">
         <meta name="color-scheme" content="light dark">
@@ -29,15 +28,12 @@
     </head>
     
     <body onload="onDeviceReady()"> <!-- remove onload in cordova project-->
-        
-        <button id="menu">MENU</button>
-        <button id="restart">RESTART</button>
-        <button id="jump">JUMP</button>
 
         <img id="playerTop" src="assets/images/playerTop.jpg" style="display:none;"/>
         
-        <!-- <script src="cordova.js"></script> -->
-        <script  src="js/index.js"></script>
+        <!-- UNCOMMENT FOR CORDOVA BUILD -->
+        <!-- <script src="cordova.js"></script> --> 
+        <script src="js/index.js"></script>
 
     </body>
 </html>
