@@ -2,7 +2,7 @@
     "playerStart": {
         "x": 340,
         "y": 1200,
-        "angle": 90
+        "angle": 0
     },
 
     "endZone": {
@@ -65,8 +65,8 @@
         {
             "x": 185,
             "y": 867,
-            "width": 96,
-            "height": 96,
+            "width": 150,
+            "height": 150,
             "angle": 0
         },
 
@@ -79,8 +79,8 @@
         },
 
         {
-            "x": 316,
-            "y": 1176,
+            "x": 216,
+            "y": 1076,
             "width": 408,
             "height": 408,
             "angle": 0

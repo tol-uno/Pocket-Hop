@@ -59,7 +59,8 @@ var UserInterface = {
     // 2: level select
     // 3: settings
     // 4: store
-    // 5: in level
+    // 5: loading map page
+    // 6: in level
 
     debugText : true,
     strafeHUD : true,
@@ -73,13 +74,20 @@ var UserInterface = {
         // CREATING THE BUTTONS
         btn_levelSelect = new Button(200, 150, 200, 100, "PLAY", function() { 
             UserInterface.gamestate = 2;
-            UserInterface.renderedButtons = [btn_level_original]
+            UserInterface.renderedButtons = [btn_level_original, btn_level_noob]
         })
 
         btn_level_original = new Button(100, 50, 100, 80, "Original", function() { 
+            map = new Map("original");
+            UserInterface.gamestate = 5;
+            UserInterface.renderedButtons = [btn_mainMenu];
+
+        })
+
+        btn_level_noob = new Button(220, 50, 100, 80, "Noob", function() { 
             map = new Map("noob");
             UserInterface.gamestate = 5;
-            UserInterface.renderedButtons = [btn_mainMenu, btn_restart, btn_jump]
+            UserInterface.renderedButtons = [btn_mainMenu];
         })
 
         btn_mainMenu = new Button(30, 40, 80, 60, "menu", function() { 
@@ -115,6 +123,10 @@ var UserInterface = {
         }
     },
 
+    mapLoaded : function() { // called by map.start()
+        UserInterface.gamestate = 6;
+        UserInterface.renderedButtons = [btn_mainMenu, btn_restart, btn_jump];
+    },
 
     touchReleased : function(x,y) { // TRIGGERED BY InputHandler
 
@@ -138,7 +150,7 @@ var UserInterface = {
             // not doing anything
         }
 
-        if (this.gamestate == 5) { // In Level
+        if (this.gamestate == 6) { // In Level
 
             if (this.debugText) { // DRAWING DEBUG TEXT
                 var textX = canvasArea.canvas.width * 0.17; 
@@ -216,8 +228,10 @@ class Map {
         // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
         async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
             let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
+            // OLD LOCAL STORAGE
+            // let mapURL = "assets/maps/" + name + ".json";
             // could eventually be "pockethop.com/maps/original.json"
-            // OLD LOCAL STORAGE url: "assets/maps/" + name + ".json";
+
 
             try {
                 let response = await fetch(mapURL);
@@ -227,7 +241,7 @@ class Map {
             }
         }
 
-        
+
         // LOOP THROUGH JSON DATA AND ADD NEW PLATFORM OBJECTS
         async function parsePlatforms() {
             let jsonData = await getJsonData(); // SEE ABOVE ^^
@@ -252,6 +266,8 @@ class Map {
             this.platforms = mapData[2];
 
             player = new Player(mapData[0].x, mapData[0].y, mapData[0].angle);
+
+            UserInterface.mapLoaded(); // moves onto gamestate 6
         });
     }
 
@@ -533,7 +549,6 @@ class Player {
     checkCollision() { // called every time player hits the floor
         var collision = 0;
         map.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS
-            
 
             class Rectangle{
                 constructor(x,y,width,height,angle){
@@ -733,6 +748,7 @@ class Player {
             detectRectangleCollision(platform);
         
         });
+        
         if (collision > 0) {return true} else {return false}
     }
 
@@ -782,13 +798,12 @@ class Vector { // DONT ACTUALLY USE THIS AT ALL
 
 
 function updateGameArea() { // CALLED EVERY FRAME
-
     
     // UPDATING OBJECTS
     touchHandler.update(); 
     UserInterface.update();
 
-    if (UserInterface.gamestate == 5) {
+    if (UserInterface.gamestate == 6) {
         var dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
         prevDateNow = Date.now();
 
@@ -799,7 +814,7 @@ function updateGameArea() { // CALLED EVERY FRAME
     // RENDERING OBJECTS
     canvasArea.clear();
 
-    if (UserInterface.gamestate == 5) {
+    if (UserInterface.gamestate == 6) {
         map.render();
         player.render();
     }
