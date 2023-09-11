@@ -10,6 +10,7 @@ html, body {
     /* width: 100vw; */
     overflow: hidden;
     background: #3f9ba5;
+
 }
 
 body { /* all these are from cordova's default css file*/
@@ -22,7 +23,6 @@ body { /* all these are from cordova's default css file*/
 }
 
 canvas {
-    /* vertical-align: middle; */
     position: absolute;
     top: 50%;
     left: 50%;
@@ -30,40 +30,8 @@ canvas {
 
     display: block;
 
-    /* border: 20px solid black; */
     background: #3f9ba5;
-    /* background: #16b144; */
 
     max-width: 100%;
     max-height: 100%;
-}
-
-button {
-    position: absolute;
-    border: solid rgb(255, 255, 255) 5px;
-    background-color: rgb(95, 95, 95);
-    color: white;
-    border-radius: 1vw;
-}
-
-#menu {
-    left: 5%;
-    top: 10%;
-    width: 10vw;
-    height: 5vw;
-}
-
-#restart {
-    left: 5%;
-    bottom: 40%;
-    width: 10vw;
-    height: 10vw;
-}
-
-#jump {
-    left: 5%;
-    bottom: 10%;
-    width: 10vw;
-    height: 10vw;
-
 }

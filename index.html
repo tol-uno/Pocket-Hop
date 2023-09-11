@@ -29,9 +29,16 @@
     <body onload="onDeviceReady()"> <!-- remove onload in cordova project-->
 
         <img id="playerTop" src="assets/images/playerTop.jpg" style="display:none;"/>
-        
+        <!-- <img id="playerTop" src="assets/images/playerTop.jpg" style="display:none;"/> -->
+
+
+        <audio id="successAudio"><source src="assets/audio/success.ogg" type="audio/ogg"></audio>
+        <audio id="jumpAudio"><source src="assets/audio/jump.ogg" type="audio/ogg"></audio>
+        <audio id="splashAudio"><source src="assets/audio/splash.ogg" type="audio/ogg"></audio>
+
+        <!-- remove onload in cordova project ^^ -->
         <!-- CHANGE URL FOR MAPS TO GITHUB -->
-        <!-- UNCOMMENT FOR CORDOVA BUILD -->
+        <!-- UNCOMMENT BELOW FOR CORDOVA BUILD -->
         <!-- <script src="cordova.js"></script> --> 
         <script src="js/index.js"></script>
 

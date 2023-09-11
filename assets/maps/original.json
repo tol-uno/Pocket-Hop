@@ -13,6 +13,19 @@
         "angle": 0
     },
 
+    "style":{
+        "platformTopColor": "rgba(209,70,63,1)",
+        "platformSideColor": "rgba(209,70,63,1)",
+        "endZoneTopColor": "rgba(255,218,98,1)",
+        "endZoneSideColor": "rgba(255,218,98,1)",
+        "backgroundColor": "#a3d5e1",
+        "shadowColor": "#07070a15",
+
+        "lightAngle": 45,
+        "platformHeight": 25,
+        "shadowLength": 0
+    },
+
     "platforms": [
         {
             "x": 459,

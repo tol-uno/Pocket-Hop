@@ -13,6 +13,7 @@ function onDeviceReady() { // Called on page load in HMTL
 
     touchHandler = new InputHandler;
     UserInterface.start();
+    AudioHandler.setVolumes();
 
     player = null; // Needs to be created by map
     canvasArea.start();
@@ -64,10 +65,11 @@ var UserInterface = {
 
     debugText : true,
     strafeHUD : true,
+    volume : 0.5,
     
     timer : 0,
     timerStart : Date.now(), // dont need to pull date here
-    levelStarted : false,
+    levelState : 1, // 1 = pre-start, 2 = playing level, 3 = in endzone
 
     start : function() {
 
@@ -75,6 +77,12 @@ var UserInterface = {
         btn_levelSelect = new Button(200, 150, 200, 100, "PLAY", function() { 
             UserInterface.gamestate = 2;
             UserInterface.renderedButtons = [btn_level_original, btn_level_noob]
+        })
+
+        btn_settings = new Button(420, 150, 200, 100, "Clear Records", function() {
+            window.localStorage.removeItem("record_original")
+            window.localStorage.removeItem("record_noob")
+            console.log("records cleared")
         })
 
         btn_level_original = new Button(100, 50, 100, 80, "Original", function() { 
@@ -93,32 +101,32 @@ var UserInterface = {
         btn_mainMenu = new Button(30, 40, 80, 60, "menu", function() { 
             UserInterface.gamestate = 1;
             UserInterface.timer = 0;
-            UserInterface.levelStarted = false;
+            UserInterface.levelState = 1;
             player = null;
             map = null;
-            UserInterface.renderedButtons = [btn_levelSelect];
+            UserInterface.renderedButtons = [btn_levelSelect, btn_settings];
         })
 
         btn_restart = new Button(30, 200, 80, 60, "restart", function() { 
             UserInterface.timer = 0;
-            UserInterface.levelStarted = false;
+            UserInterface.levelState = 1;
             player.restart();
         })
 
         btn_jump = new Button(30, 300, 80, 60, "jump", function() { 
-            if (!UserInterface.levelStarted) {
+            if (UserInterface.levelState == 1) {
                 UserInterface.timerStart = Date.now();
-                UserInterface.levelStarted = true;
+                UserInterface.levelState = 2;
                 player.startLevel();
             }
         })
 
-        this.renderedButtons = [btn_levelSelect]; 
+        this.renderedButtons = [btn_levelSelect, btn_settings]; 
 
     },
 
     update : function() {
-        if (this.levelStarted) {
+        if (this.levelState == 2) {
             this.timer = Date.now() - this.timerStart;
         }
     },
@@ -126,6 +134,18 @@ var UserInterface = {
     mapLoaded : function() { // called by map.start()
         UserInterface.gamestate = 6;
         UserInterface.renderedButtons = [btn_mainMenu, btn_restart, btn_jump];
+    },
+
+    handleRecord : function() {
+        if (map.record) {
+            if (UserInterface.timer < map.record) {
+                window.localStorage.setItem("record_" + map.name, UserInterface.timer)
+                map.record = UserInterface.timer
+            }
+        } else { // IF THERE'S NO RECORD
+            window.localStorage.setItem("record_" + map.name, UserInterface.timer)
+            map.record = UserInterface.timer
+        }
     },
 
     touchReleased : function(x,y) { // TRIGGERED BY InputHandler
@@ -188,8 +208,58 @@ var UserInterface = {
                 canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * sensitivity); // YOUR STRAFE
                 canvasArea.ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
             }
+
+            if (player.endSlow == 0) { // level name, your time, best time, strafe efficiency
+
+                // END SCREEN BOX
+                canvasArea.ctx.strokeStyle = "#BBBBBB";
+                canvasArea.ctx.lineWidth = 6;
+                canvasArea.ctx.fillStyle = "#FFFFFF";
+                canvasArea.ctx.beginPath();
+
+                // canvasArea.ctx.roundRect(midX - 150, midY - 100, 300, 200, 10); // DOESNT WORK ON IOS
+                // https://stackoverflow.com/questions/1255512/how-to-draw-a-rounded-rectangle-using-html-canvas
+                // ^ alternative way to do rounded rectangles
+
+                canvasArea.ctx.rect(midX - 150, midY - 100, 300, 200)
+
+                canvasArea.ctx.save();
+                canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.5)"; 
+                canvasArea.ctx.shadowBlur = 20;
+                canvasArea.ctx.fill();
+                canvasArea.ctx.restore();
+                
+                canvasArea.ctx.stroke();
+
+                // END SCREEN TEXT
+                canvasArea.ctx.font = "25px sans-serif";
+
+                canvasArea.ctx.fillStyle = "#555555"; // GRAY
+
+                canvasArea.ctx.fillText("Level: " + map.name, midX - 120, midY - 50);
+                canvasArea.ctx.fillText("Time: " + UserInterface.timer / 1000, midX - 120, midY - 0);
+                canvasArea.ctx.fillText("Record: " + map.record / 1000, midX - 120, midY + 30);
+
+                if (UserInterface.timer == map.record) {canvasArea.ctx.fillText("New Record!", midX - 120, midY + 65)}
+
+            }
         }
     }
+}
+
+
+var AudioHandler = {
+    successAudio : document.getElementById("successAudio"),
+    splashAudio : document.getElementById("splashAudio"),
+    jumpAudio : document.getElementById("jumpAudio"),
+    setVolumes : function() {
+        this.successAudio.volume = 0.5 * UserInterface.volume;
+        this.splashAudio.volume = 0.4 * UserInterface.volume;
+        this.jumpAudio.volume = 0.5 * UserInterface.volume;
+    },
+    success : function() {this.successAudio.play()},
+    splash : function() {this.splashAudio.play()},
+    jump : function() {this.jumpAudio.play()},
 }
 
 
@@ -204,12 +274,27 @@ class Button {
     }
 
     render() {
-        canvasArea.ctx.fillStyle = "lightgrey"; 
-        canvasArea.ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        canvasArea.ctx.strokeStyle = "#BBBBBB";
+        canvasArea.ctx.lineWidth = 6;
+        canvasArea.ctx.fillStyle = "#FFFFFF";
+        canvasArea.ctx.beginPath();
+
+        canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
+
+        canvasArea.ctx.save();
+        canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
+        canvasArea.ctx.shadowBlur = 10;
+        canvasArea.ctx.fill();
+        canvasArea.ctx.restore();
+
+        canvasArea.ctx.stroke();
+
 
         // this should be drawing an image not text. text is placholder
+        canvasArea.ctx.font = "15px sans-serif";
         canvasArea.ctx.fillStyle = "black";
-        canvasArea.ctx.fillText(this.image, this.x + 2, this.y + this.height / 2)
+        canvasArea.ctx.fillText(this.image, this.x + 10, this.y + this.height / 2)
     }
 
     pressed() {
@@ -222,16 +307,41 @@ class Map {
     platforms = [];
     mapData = [];
     renderedPlatforms = [];
+    endZoneIsRendered = false;
+    name;
+    record;
+
+    // MAX AND MIN SHADE VALUES
+    outMin = -0.005;
+    outMax = -0.2;
+
+    calculateShadedColor(sideNormalVector, color) {
+        var darkness = 180 - (sideNormalVector.angleDifference(map.style.lightAngleVector) * (180/Math.PI));
+    
+        // MAP TO RANGE: https://stackoverflow.com/questions/10756313/javascript-jquery-map-a-range-of-numbers-to-another-range-of-numbers
+        // (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+        darkness = (darkness) * (this.outMax - this.outMin) / 180 + this.outMin;
+
+        return this.RGB_Linear_Shade(darkness, color)
+    }
+
+    // USED TO BRIGHTEN AND DARKEN COLORS. p = percent to brighten/darken. c = color in rgba
+    // https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
+    
+    RGB_Linear_Shade(p,c) {
+        var i=parseInt,r=Math.round,[a,b,c,d]=c.split(","),P=p<0,t=P?0:255*p,P=P?1+p:1-p;
+        return"rgb"+(d?"a(":"(")+r(i(a[3]=="a"?a.slice(5):a.slice(4))*P+t)+","+r(i(b)*P+t)+","+r(i(c)*P+t)+(d?","+d:")");
+    }
 
     constructor(name) {
+        this.name = name;
 
         // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
         async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
-            let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
+            // let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
             // OLD LOCAL STORAGE
-            // let mapURL = "assets/maps/" + name + ".json";
+            let mapURL = "assets/maps/" + name + ".json";
             // could eventually be "pockethop.com/maps/original.json"
-
 
             try {
                 let response = await fetch(mapURL);
@@ -250,46 +360,90 @@ class Map {
             var playerStart = jsonData.playerStart; // 3 temporary vars that get combined into mapData and pushed out of async function
             var endZone = jsonData.endZone;
             var platforms = [];
+            var style = jsonData.style;
+
 
             jsonData.platforms.forEach(platform => { // LOOP THROUGH DATA AND ADD EACH PLATFORM TO AN ARRAY
                 platforms.push(platform);
             });
 
-            var mapData = [playerStart, endZone, platforms]; // all the data to be sent out from this async function (platforms, player start, end zone)
+            var mapData = [playerStart, endZone, platforms, style]; // all the data to be sent out from this async function (platforms, player start, end zone)
 
             return mapData;
         }
 
+
+
         parsePlatforms().then(mapData => { // WAITS FOR ASYNC FUNCTION 
             this.playerStart = mapData[0];
             this.endZone = mapData[1];
+            this.endZone.hypotenuse = Math.sqrt(this.endZone.width * this.endZone.width + this.endZone.height * this.endZone.height)/2 // for checking whether to render endZone
             this.platforms = mapData[2];
+            this.style = mapData[3];
 
-            player = new Player(mapData[0].x, mapData[0].y, mapData[0].angle);
+            // Calculate lighting for each platform and the endzone
+            this.style.lightAngleVector =  new Vector(Math.cos(this.style.lightAngle * (Math.PI/180)), Math.sin(this.style.lightAngle * (Math.PI/180)))
+
+            this.platforms.forEach(platform => { // PLATFORMS COLORS
+
+                platform.side1Vec = new Vector(-1,0).rotate(platform.angle) // !! DONT need to be properties of platform. only made properties for debug
+                platform.side2Vec = new Vector(0,1).rotate(platform.angle)
+                platform.side3Vec = new Vector(1,0).rotate(platform.angle)
+
+                platform.sideColor1 = this.calculateShadedColor(platform.side1Vec, map.style.platformSideColor) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
+                platform.sideColor2 = this.calculateShadedColor(platform.side2Vec, map.style.platformSideColor)
+                platform.sideColor3 = this.calculateShadedColor(platform.side3Vec, map.style.platformSideColor)
+            });
+
+            // ENDZONE COLORS
+            var side1Vec = new Vector(-1,0).rotate(this.endZone.angle)
+            var side2Vec = new Vector(0,1).rotate(this.endZone.angle)
+            var side3Vec = new Vector(1,0).rotate(this.endZone.angle)
+
+            this.endZone.sideColor1 = this.calculateShadedColor(side1Vec, map.style.endZoneSideColor) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
+            this.endZone.sideColor2 = this.calculateShadedColor(side2Vec, map.style.endZoneSideColor)
+            this.endZone.sideColor3 = this.calculateShadedColor(side3Vec, map.style.endZoneSideColor)
+
+
+            canvasArea.canvas.style.backgroundColor = this.style.backgroundColor;
+            player = new Player(this.playerStart.x, this.playerStart.y, this.playerStart.angle);
+
+            // Get map record from local storage
+            this.record = window.localStorage.getItem("record_" + map.name)
 
             UserInterface.mapLoaded(); // moves onto gamestate 6
         });
     }
 
-
-    update() { // Figure out which platforms are in view
+    update() { // Figure out which platforms (and if endzone) are in view
 
         this.renderedPlatforms = [];
 
         this.platforms.forEach(platform => { // Loop through platforms
+            var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+
             if (
-                (platform.x + platform.width > player.x - midX) && // left
-                (platform.x < player.x + midX) && // right
-                (platform.y + platform.height > player.y - midY) && // top
-                (platform.y < player.y + midY) // bottom
+                (platform.x + platform.width/2 + hypotenuse > player.x - midX) && // left
+                (platform.x + platform.width/2 - hypotenuse < player.x + midX) && // right
+                (platform.y + platform.height/2 + hypotenuse > player.y - midY) && // top
+                (platform.y + platform.height/2 -hypotenuse < player.y + midY) // bottom
             ) {
                 this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
             }
-
         });
+
+        if ( // Test if end zone should be rendered
+            (this.endZone.x + this.endZone.width/2 + this.endZone.hypotenuse > player.x - midX) && // left
+            (this.endZone.x + this.endZone.width/2 - this.endZone.hypotenuse < player.x + midX) && // right
+            (this.endZone.y + this.endZone.height/2 + this.endZone.hypotenuse > player.y - midY) && // top
+            (this.endZone.y + this.endZone.height/2 - this.endZone.hypotenuse < player.y + midY) // bottom
+        ) {
+            this.endZoneIsRendered = true; // End Zone is in view and should be rendered
+        } else {this.endZoneIsRendered = false}
     }
 
     render() { // Render the platforms that are in view 
+    
         const ctx = canvasArea.ctx;
 
         ctx.save();
@@ -298,16 +452,146 @@ class Map {
 
         this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS
             
-            ctx.fillStyle = "#16b144"  // DRAW PLATFORM WITH BORDER
-            ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-            ctx.fillStyle = "#128f38";
-            ctx.fillRect(platform.x + border, platform.y + border, platform.width - border * 2, platform.height - border * 2);
+            ctx.save(); // ROTATING 
+            ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
+            ctx.rotate(platform.angle * Math.PI/180);
 
+            ctx.fillStyle = this.style.platformTopColor; // DRAW PLATFORM TOP
+            ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
+
+            ctx.restore();
+
+
+            // SIDES OF PLATFORMS
+            ctx.save();
+            ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
+
+            var angleRad = platform.angle * (Math.PI/180);
+            
+            // platform angles should only be max of 90 and -90 in mapData
+            // calculating shading works with any angle but sides arent draw because drawing if statements are hardcoded to 90 degrees
+
+
+            if (-90 < platform.angle && platform.angle < 90) { // ALMOST ALWAYS RENDER BOTTOM SIDE. side2
+                ctx.fillStyle = platform.sideColor2; // sideColor2
+
+                ctx.beginPath();
+                ctx.moveTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot right
+                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot left
+                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+
+            if (0 < platform.angle && platform.angle <= 90) { // side3
+
+                ctx.fillStyle = platform.sideColor3; // sideColor3
+                ctx.beginPath();
+                ctx.moveTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot right
+                ctx.lineTo(platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad))); // top right
+                ctx.lineTo(platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            if (-90 <= platform.angle && platform.angle < 0) { // side1
+
+                ctx.fillStyle = platform.sideColor1; // sideColor1  
+                ctx.beginPath();
+                ctx.moveTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot left
+                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad))); // top left
+                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+
+            // PLAFORM RENDERING DEBUG TEXT
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText("angle: " + platform.angle, 0,-20);
+            ctx.fillText("side1Vec: " + platform.side1Vec.x + ", " + platform.side1Vec.y, 0, 0);
+            ctx.fillText("side2Vec: " + platform.side2Vec.x + ", " + platform.side2Vec.y, 0, 20);
+            ctx.fillText("side3Vec: " + platform.side3Vec.x + ", " + platform.side3Vec.y, 0, 40);
+            
+            ctx.fillText("side1: " + platform.sideColor1, 0, 60);
+            ctx.fillText("side2: " + platform.sideColor2, 0, 80);
+            ctx.fillText("side3: " + platform.sideColor3, 0, 100);
+
+            ctx.restore();
         });
 
-        ctx.restore();
-    }
 
+        if (this.endZoneIsRendered) { // DRAW ENDZONE
+
+            ctx.save(); // ROTATING 
+            ctx.translate(this.endZone.x + this.endZone.width/2, this.endZone.y + this.endZone.height/2);
+            ctx.rotate(this.endZone.angle * Math.PI/180);
+
+            ctx.fillStyle = this.style.endZoneTopColor; // DRAW this.endZone TOP
+            ctx.fillRect(-this.endZone.width/2, -this.endZone.height/2, this.endZone.width, this.endZone.height);
+
+            ctx.restore();
+
+
+            // SIDES OF ENDZONE
+            ctx.save();
+            ctx.translate(this.endZone.x + this.endZone.width/2, this.endZone.y + this.endZone.height/2);
+
+            var angleRad = this.endZone.angle * (Math.PI/180);
+            
+            // this.endZone angles should only be max of 90 and -90 in mapData
+            // calculating shading works with any angle but sides arent draw because drawing if statements are hardcoded to 90 degrees
+
+
+            if (-90 < this.endZone.angle && this.endZone.angle < 90) { // ALMOST ALWAYS RENDER BOTTOM SIDE. side2
+                ctx.fillStyle = this.endZone.sideColor2; // sideColor2
+
+                ctx.beginPath();
+                ctx.moveTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot right
+                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot left
+                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+
+            if (0 < this.endZone.angle && this.endZone.angle <= 90) { // side3
+
+                ctx.fillStyle = this.endZone.sideColor3; // sideColor3
+                ctx.beginPath();
+                ctx.moveTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot right
+                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad))); // top right
+                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            if (-90 <= this.endZone.angle && this.endZone.angle < 0) { // side1
+
+                ctx.fillStyle = this.endZone.sideColor1; // sideColor1  
+                ctx.beginPath();
+                ctx.moveTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot left
+                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad))); // top left
+                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+
+            ctx.restore();
+
+
+        }
+
+        ctx.restore(); // RESTORING VIEW FOLLOWING PLAYER I THINK
+    }
 }
 
 
@@ -404,6 +688,9 @@ class InputHandler {
             this.dragAmount = this.touchX - this.previousX;
             this.previousX = this.touchX;
         }
+
+        // FOR TESTING
+        // this.dragAmount = 5;
     }
 
 }
@@ -413,6 +700,8 @@ class Player {
     speed = 0;
     jumpValue = 0;
     jumpVelocity = 2;
+    endSlow = 1;
+    sideColor = "rgba(239,238,236,1)";
 
     constructor(x, y, angle) {
         this.x = x;
@@ -448,7 +737,9 @@ class Player {
         // DRAWING PLAYER TOP
         ctx.translate(0, -this.jumpValue - 32); 
         ctx.rotate(this.angle * Math.PI/180); // rotating canvas
-        ctx.drawImage(document.getElementById("playerTop"), -16, -16);
+        ctx.fillStyle = this.sideColor;
+        ctx.fillRect(-16,-16,32,32)
+        // ctx.drawImage(document.getElementById("playerTop"), -16, -16);
 
         ctx.restore();
 
@@ -459,7 +750,10 @@ class Player {
         var loopedAngle = this.angle - (Math.round(this.angle/360) * 360);
 
         if (-90 < loopedAngle && loopedAngle < 90) { // BOT WALL
-            ctx.fillStyle = "#B00C0A";
+
+            var sideVector = new Vector(0,1).rotate(this.angle)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+
             ctx.beginPath();
             ctx.moveTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
             ctx.lineTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
@@ -470,7 +764,10 @@ class Player {
         }
 
         if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
-            ctx.fillStyle = "#800908";
+
+            var sideVector = new Vector(1,0).rotate(this.angle)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+
             ctx.beginPath();
             ctx.moveTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.lineTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
@@ -481,7 +778,10 @@ class Player {
         }
 
         if (90 < loopedAngle || loopedAngle < -90) { // TOP WALL
-            ctx.fillStyle = "#B00C0A";
+            
+            var sideVector = new Vector(0,-1).rotate(this.angle)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+            
             ctx.beginPath();
             ctx.moveTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
             ctx.lineTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
@@ -492,7 +792,10 @@ class Player {
         }
 
         if (-180 < loopedAngle && loopedAngle < 0) { // LEFT WALL
-            ctx.fillStyle = "#800908";
+
+            var sideVector = new Vector(-1,0).rotate(this.angle)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+
             ctx.beginPath();
             ctx.moveTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.lineTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
@@ -511,10 +814,13 @@ class Player {
     }
 
     updatePos(dt) {  // NEEDS TO BE FPS INDEPENDENT
-        this.angle += touchHandler.dragAmount * sensitivity;
-        // touchHandler.touchIDs[0].dragAmount
+        if (this.speed > 100 && this.speed < 102) {console.log(UserInterface.timer/1000)}
+        
+        if (UserInterface.levelState == 1 || UserInterface.levelState == 2) {
+            this.angle += touchHandler.dragAmount * sensitivity;
+        }
 
-        if (UserInterface.levelStarted) {
+        if (UserInterface.levelState == 2) {
             if (this.speed >= 0) { // PREVENTS GOING BACKWARDS
                 this.speed += this.calculateGain(touchHandler.dragAmount, dt);
             } else {this.speed = 0}
@@ -525,12 +831,37 @@ class Player {
             if (this.jumpValue < 0) { // JUMPING
                 this.jumpValue = 0;
                 this.jumpVelocity = 2;
-                if (!this.checkCollision()) {
-                    btn_restart.pressed();
+                AudioHandler.jump();
+                if (!this.checkCollision(map.renderedPlatforms)) {
+                    AudioHandler.splash();
+                    // btn_restart.pressed();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
                 this.jumpVelocity -= gravity * dt;
+            }
+
+            if (map.endZoneIsRendered) { // CHECK IF COLLIDING WITH ENDZONE
+                if (this.checkCollision([map.endZone])) {
+                    AudioHandler.success();
+                    UserInterface.handleRecord();
+                    UserInterface.levelState = 3;
+                }
+            }
+        }
+
+        if (UserInterface.levelState == 3) { // SLOW DOWN MOVEMENT AFTER HITTING END ZONE
+            if (this.endSlow > 0.02) {this.endSlow = (this.endSlow * 0.95);} else {this.endSlow = 0} // THIS NEEDS TO BE FPS INDEPENDENT
+
+            this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt * this.endSlow; // MOVE FORWARD AT ANGLE BASED ON SPEED
+            this.y += Math.sin(this.angle * (Math.PI / 180)) * this.speed/50 * dt * this.endSlow;
+        
+            if (this.jumpValue < 0) { // JUMPING
+                this.jumpValue = 0;
+                this.jumpVelocity = 2;
+            } else {
+                this.jumpValue += this.jumpVelocity * dt * this.endSlow;
+                this.jumpVelocity -= gravity * dt * this.endSlow;
             }
         }
     }
@@ -540,15 +871,16 @@ class Player {
         var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both -- maybe just add as var somwhere
 
         if (Math.abs(drag) * sensitivity < strafeThreshold * dt) {
+            // console.log(Math.abs(drag) * sensitivity * airAcceleration)
             return Math.abs(drag) * sensitivity * airAcceleration;
         } else {
             return -Math.abs(drag) * sensitivity * airAcceleration;
         }
     }
 
-    checkCollision() { // called every time player hits the floor
+    checkCollision(arrayOfPlatformsToCheck) { // called every time player hits the floor ALSO used to check endzone collision
         var collision = 0;
-        map.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS
+        arrayOfPlatformsToCheck.forEach(platform => { // LOOP THROUGH PLATFORMS
 
             class Rectangle{
                 constructor(x,y,width,height,angle){
@@ -562,7 +894,7 @@ class Player {
 
             let rectangleStore = [
                 new Rectangle(player.x-16, player.y-16, 32, 32, player.angle),
-                new Rectangle(platform.x, platform.y, platform.width, platform.height, 0)
+                new Rectangle(platform.x, platform.y, platform.width, platform.height, platform.angle)
             ]
 
             canvasArea.ctx.fillRect(rectangleStore[0].x, rectangleStore[0].y, rectangleStore[0].width, rectangleStore[0].height)
@@ -759,11 +1091,12 @@ class Player {
         this.speed = 0;
         this.jumpValue = 0;
         this.jumpVelocity = 2;
+        this.endSlow = 1;
     }
 }
 
 
-class Vector { // DONT ACTUALLY USE THIS AT ALL
+class Vector {
     constructor(x, y) {
       this.x = x;
       this.y = y;
@@ -772,10 +1105,6 @@ class Vector { // DONT ACTUALLY USE THIS AT ALL
     add = function(otherVec) {
         this.x += otherVec.x;
         this.y += otherVec.y;
-    }
-
-    length = function() {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
     }
 
     divide = function(scalar) {
@@ -787,7 +1116,32 @@ class Vector { // DONT ACTUALLY USE THIS AT ALL
         this.y *= scalar;
     }
 
-    normalize(multiplier) {
+    dotProduct = function(otherVec) { // ONLY FOR 2D Vectors
+        return (this.x * otherVec.x) + (this.y * otherVec.y)
+    }
+
+    magnitude = function() {
+        return Math.sqrt((this.x ** 2) + (this.y ** 2))
+    }
+
+    rotate = function(ang) // angle in degrees 
+    {
+        ang = ang * (Math.PI/180);
+        var cos = Math.cos(ang);
+        var sin = Math.sin(ang);
+        return new Vector(Math.round(10000*(this.x * cos - this.y * sin))/10000, Math.round(10000*(this.x * sin + this.y * cos))/10000);
+    }
+
+    angleDifference = function(otherVec) { // returns degrees i guess
+        // console.log("====================")
+        // console.log("dot product: " + this.dotProduct(otherVec))
+        // console.log("mag 1: " + this.magnitude())
+        // console.log("mag 2: " + otherVec.magnitude())
+        // console.log("vectors mags multiplied: " + (this.magnitude() * otherVec.magnitude()))
+        return Math.acos((this.dotProduct(otherVec)) / (this.magnitude() * otherVec.magnitude()))
+    }
+
+    normalize = function(multiplier) {
         if (this.length !== 0) {
             var n = this.divide(this.length()); // dont ever want to normalize when vector length is zero
             this.x = n.x * multiplier;
