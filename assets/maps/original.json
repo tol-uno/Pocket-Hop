@@ -14,16 +14,20 @@
     },
 
     "style":{
-        "platformTopColor": "rgba(209,70,63,1)",
-        "platformSideColor": "rgba(209,70,63,1)",
+        "platformTopColor": "rgba(158,177,87,1)",
+        "platformSideColor": "rgba(164,116,68,1)",
         "endZoneTopColor": "rgba(255,218,98,1)",
         "endZoneSideColor": "rgba(255,218,98,1)",
-        "backgroundColor": "#a3d5e1",
-        "shadowColor": "#07070a15",
+        "backgroundColor": "#627962",
+        "shadowColor": "#07070a25",
+        "playerColor": "rgba(225,205,234,1)",
+
+        "platformHeight": 10,
 
         "lightAngle": 45,
-        "platformHeight": 25,
-        "shadowLength": 0
+        "shadowContrastLight": -0.005,
+        "shadowContrastDark": -0.2,
+        "shadowLength": 20
     },
 
     "platforms": [
@@ -98,6 +102,5 @@
             "height": 48,
             "angle": 0
         }
-
     ]
 }

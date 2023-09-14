@@ -49,6 +49,38 @@ var canvasArea = { //Canvas Object
         midX = canvasArea.canvas.width / 2;
         midY = canvasArea.canvas.height / 2;
 
+    },
+
+     
+    convexHull: function (points) {
+
+        function cross(a, b, o) {
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+         }
+
+        points.sort(function(a, b) {
+           return a[0] == b[0] ? a[1] - b[1] : a[0] - b[0];
+        });
+     
+        var lower = [];
+        for (var i = 0; i < points.length; i++) {
+           while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], points[i]) <= 0) {
+              lower.pop();
+           }
+           lower.push(points[i]);
+        }
+     
+        var upper = [];
+        for (var i = points.length - 1; i >= 0; i--) {
+           while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], points[i]) <= 0) {
+              upper.pop();
+           }
+           upper.push(points[i]);
+        }
+     
+        upper.pop();
+        lower.pop();
+        return lower.concat(upper);
     }
 }
 
@@ -63,9 +95,9 @@ var UserInterface = {
     // 5: loading map page
     // 6: in level
 
-    debugText : true,
-    strafeHUD : true,
-    volume : 0.5,
+    debugText : false,
+    strafeHUD : false,
+    volume : 0.1,
     
     timer : 0,
     timerStart : Date.now(), // dont need to pull date here
@@ -76,7 +108,7 @@ var UserInterface = {
         // CREATING THE BUTTONS
         btn_levelSelect = new Button(200, 150, 200, 100, "PLAY", function() { 
             UserInterface.gamestate = 2;
-            UserInterface.renderedButtons = [btn_level_original, btn_level_noob]
+            UserInterface.renderedButtons = [btn_level_original, btn_level_noob, btn_level_hellscape]
         })
 
         btn_settings = new Button(420, 150, 200, 100, "Clear Records", function() {
@@ -94,6 +126,12 @@ var UserInterface = {
 
         btn_level_noob = new Button(220, 50, 100, 80, "Noob", function() { 
             map = new Map("noob");
+            UserInterface.gamestate = 5;
+            UserInterface.renderedButtons = [btn_mainMenu];
+        })
+
+        btn_level_hellscape = new Button(340, 50, 100, 80, "Hellscape", function() { 
+            map = new Map("hellscape");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
         })
@@ -310,24 +348,22 @@ class Map {
     endZoneIsRendered = false;
     name;
     record;
-
-    // MAX AND MIN SHADE VALUES
-    outMin = -0.005;
-    outMax = -0.2;
+    upperShadowClip = new Path2D();
+    
 
     calculateShadedColor(sideNormalVector, color) {
+
         var darkness = 180 - (sideNormalVector.angleDifference(map.style.lightAngleVector) * (180/Math.PI));
     
         // MAP TO RANGE: https://stackoverflow.com/questions/10756313/javascript-jquery-map-a-range-of-numbers-to-another-range-of-numbers
         // (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-        darkness = (darkness) * (this.outMax - this.outMin) / 180 + this.outMin;
+        darkness = (darkness) * (this.style.shadowContrastDark - this.style.shadowContrastLight) / 180 + this.style.shadowContrastLight;
 
         return this.RGB_Linear_Shade(darkness, color)
     }
 
     // USED TO BRIGHTEN AND DARKEN COLORS. p = percent to brighten/darken. c = color in rgba
     // https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
-    
     RGB_Linear_Shade(p,c) {
         var i=parseInt,r=Math.round,[a,b,c,d]=c.split(","),P=p<0,t=P?0:255*p,P=P?1+p:1-p;
         return"rgb"+(d?"a(":"(")+r(i(a[3]=="a"?a.slice(5):a.slice(4))*P+t)+","+r(i(b)*P+t)+","+r(i(c)*P+t)+(d?","+d:")");
@@ -373,19 +409,26 @@ class Map {
         }
 
 
-
-        parsePlatforms().then(mapData => { // WAITS FOR ASYNC FUNCTION 
+        parsePlatforms().then(mapData => { // WAITS FOR ASYNC FUNCTION. Big function that handles setting up the map and pre rendering calculations
             this.playerStart = mapData[0];
             this.endZone = mapData[1];
             this.endZone.hypotenuse = Math.sqrt(this.endZone.width * this.endZone.width + this.endZone.height * this.endZone.height)/2 // for checking whether to render endZone
             this.platforms = mapData[2];
             this.style = mapData[3];
 
+
             // Calculate lighting for each platform and the endzone
             this.style.lightAngleVector =  new Vector(Math.cos(this.style.lightAngle * (Math.PI/180)), Math.sin(this.style.lightAngle * (Math.PI/180)))
+            var shadowX = this.style.lightAngleVector.x * this.style.shadowLength;
+            var shadowY = this.style.lightAngleVector.y * this.style.shadowLength;
 
-            this.platforms.forEach(platform => { // PLATFORMS COLORS
+            var platformIndex = 1 // kinda debug for map making
+            this.platforms.forEach(platform => { // CALCULATE PLATFORMS COLORS and SHADOW POLYGON
 
+                platform.index = platformIndex; // asigns an index to each platform for debugging
+                platformIndex ++;
+
+                // COLORS
                 platform.side1Vec = new Vector(-1,0).rotate(platform.angle) // !! DONT need to be properties of platform. only made properties for debug
                 platform.side2Vec = new Vector(0,1).rotate(platform.angle)
                 platform.side3Vec = new Vector(1,0).rotate(platform.angle)
@@ -393,10 +436,91 @@ class Map {
                 platform.sideColor1 = this.calculateShadedColor(platform.side1Vec, map.style.platformSideColor) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
                 platform.sideColor2 = this.calculateShadedColor(platform.side2Vec, map.style.platformSideColor)
                 platform.sideColor3 = this.calculateShadedColor(platform.side3Vec, map.style.platformSideColor)
+
+                // SHADOW POLYGON
+                var angleRad = platform.angle * (Math.PI/180);
+    
+                platform.shadowPoints = [ // ALL THE POSSIBLE POINTS TO INPUT IN CONVEX HULL FUNCTION
+                
+                    // bot left corner
+                    [
+                    -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)),
+                    -((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                    ],
+
+                    // bot right corner
+                    [
+                    ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)),
+                    ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                    ],
+
+                    // top right corner
+                    [
+                    ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
+                    ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                    ],
+
+                    // bot left corner
+                    [
+                    -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
+                    -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                    ],
+
+                    // bot left SHADOW
+                    [
+                    -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
+                    -((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    ],
+
+                    // bot right SHADOW
+                    [
+                    ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
+                    ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    ],
+
+                    // top right SHADOW
+                    [
+                    ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
+                    ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    ],
+
+                    // bot left SHADOW
+                    [
+                    -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
+                    -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    ],
+
+                ]; // end of shadowPoints array
+
+                platform.shadowPoints = canvasArea.convexHull(platform.shadowPoints)
+
+
+                // SHADOW CLIP FOR UPPER PLAYER SHADOW
+                this.upperShadowClip.moveTo( // bot left
+                    platform.x + platform.width/2 -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)),
+                    platform.y + platform.height/2 -((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad))
+                    )
+                this.upperShadowClip.lineTo( // bot right
+                    platform.x + platform.width/2 + ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)),
+                    platform.y + platform.height/2 + ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad))
+                )
+
+                this.upperShadowClip.lineTo( // top right
+                    platform.x + platform.width/2 + ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
+                    platform.y + platform.height/2 + ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad))
+                )
+
+                this.upperShadowClip.lineTo( // top left
+                    platform.x + platform.width/2 -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
+                    platform.y + platform.height/2 -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad))
+                )
+
+                this.upperShadowClip.closePath()
+
             });
 
             // ENDZONE COLORS
-            var side1Vec = new Vector(-1,0).rotate(this.endZone.angle)
+            var side1Vec = new Vector(-1,0).rotate(this.endZone.angle) 
             var side2Vec = new Vector(0,1).rotate(this.endZone.angle)
             var side3Vec = new Vector(1,0).rotate(this.endZone.angle)
 
@@ -404,6 +528,63 @@ class Map {
             this.endZone.sideColor2 = this.calculateShadedColor(side2Vec, map.style.endZoneSideColor)
             this.endZone.sideColor3 = this.calculateShadedColor(side3Vec, map.style.endZoneSideColor)
 
+
+            // ENDZONE SHADOW POLYGON
+            var angleRad = this.endZone.angle * (Math.PI/180);
+
+            this.endZone.shadowPoints = [ // ALL THE POSSIBLE POINTS TO INPUT IN CONVEX HULL FUNCTION
+            
+                // bot left corner
+                [
+                -((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)),
+                -((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                ],
+
+                // bot right corner
+                [
+                ((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)),
+                ((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                ],
+
+                // top right corner
+                [
+                ((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)),
+                ((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                ],
+
+                // bot left corner
+                [
+                -((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)),
+                -((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
+                ],
+
+                // bot left SHADOW
+                [
+                -((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
+                -((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                ],
+
+                // bot right SHADOW
+                [
+                ((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
+                ((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                ],
+
+                // top right SHADOW
+                [
+                ((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
+                ((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                ],
+
+                // bot left SHADOW
+                [
+                -((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
+                -((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                ],
+
+            ]; // end of shadowPoints array
+
+            this.endZone.shadowPoints = canvasArea.convexHull(this.endZone.shadowPoints)
 
             canvasArea.canvas.style.backgroundColor = this.style.backgroundColor;
             player = new Player(this.playerStart.x, this.playerStart.y, this.playerStart.angle);
@@ -421,12 +602,14 @@ class Map {
 
         this.platforms.forEach(platform => { // Loop through platforms
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+            var shadowlengthX = this.style.lightAngleVector.x * this.style.shadowLength; // could add these calculations directly into check but gets messy
+            var shadowlengthY = this.style.lightAngleVector.y * this.style.shadowLength;
 
             if (
-                (platform.x + platform.width/2 + hypotenuse > player.x - midX) && // left
-                (platform.x + platform.width/2 - hypotenuse < player.x + midX) && // right
-                (platform.y + platform.height/2 + hypotenuse > player.y - midY) && // top
-                (platform.y + platform.height/2 -hypotenuse < player.y + midY) // bottom
+                (platform.x + platform.width/2 + hypotenuse + this.style.shadowLength > player.x - midX) && // coming into frame on left side
+                (platform.x + platform.width/2 - hypotenuse - this.style.shadowLength < player.x + midX) && // right side
+                (platform.y + platform.height/2 + hypotenuse + this.style.shadowLength + this.style.platformHeight > player.y - midY) && // top side
+                (platform.y + platform.height/2 - hypotenuse - this.style.shadowLength < player.y + midY) // bottom side
             ) {
                 this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
             }
@@ -446,12 +629,59 @@ class Map {
     
         const ctx = canvasArea.ctx;
 
-        ctx.save();
-        var border = 7;
-        ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
 
-        this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS
+        ctx.save();
+        ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
+        
+
+        //DEBUG FOR UPPER SHADOW CLIP
+        // ctx.strokeStyle = "green"
+        // ctx.stroke(this.upperShadowClip)
+
+
+
+        ctx.save(); // Saves the state of the canvas
             
+        ctx.translate(player.x , player.y + this.style.platformHeight)
+
+        // DRAWING LOWER PLAYER SHADOW
+        ctx.rotate(player.angle * Math.PI/180); // rotating canvas
+
+        ctx.fillStyle = this.style.shadowColor;
+        // ctx.fillStyle = "green";
+        // var blurValue = player.jumpValue / 16 + 1
+        // ctx.filter = "blur(" + blurValue + "px)";
+        ctx.fillRect(-15, -15, 30, 30)
+        // ctx.filter = "none";
+        ctx.restore();
+
+
+        this.renderedPlatforms.forEach(platform => { // LOOP THROUGHT TO DRAW SHADOWS FIRST
+
+            ctx.save();
+            ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
+
+
+            ctx.fillStyle = this.style.shadowColor;
+
+            // ctx.filter = "blur(2px)"; // start blur
+            ctx.beginPath();
+            
+            ctx.moveTo(platform.shadowPoints[0][0], platform.shadowPoints[0][1]);
+            for (let i = platform.shadowPoints.length - 1; i > 0; i --) {
+                ctx.lineTo(platform.shadowPoints[i][0], platform.shadowPoints[i][1]);
+            }
+
+            ctx.closePath();
+            ctx.fill();
+
+            // ctx.filter = "none"; // end blur
+
+            ctx.restore();
+        })
+
+        this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS (DRAW ACTUAL PLATFORMS)
+
             ctx.save(); // ROTATING 
             ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
             ctx.rotate(platform.angle * Math.PI/180);
@@ -511,15 +741,16 @@ class Map {
 
 
             // PLAFORM RENDERING DEBUG TEXT
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillText("angle: " + platform.angle, 0,-20);
-            ctx.fillText("side1Vec: " + platform.side1Vec.x + ", " + platform.side1Vec.y, 0, 0);
-            ctx.fillText("side2Vec: " + platform.side2Vec.x + ", " + platform.side2Vec.y, 0, 20);
-            ctx.fillText("side3Vec: " + platform.side3Vec.x + ", " + platform.side3Vec.y, 0, 40);
+            // ctx.fillStyle = "#FFFFFF";
+            // ctx.fillText("index: " + platform.index, 0, -40);
+            // ctx.fillText("angle: " + platform.angle, 0,-20);
+            // ctx.fillText("side1Vec: " + platform.side1Vec.x + ", " + platform.side1Vec.y, 0, 0);
+            // ctx.fillText("side2Vec: " + platform.side2Vec.x + ", " + platform.side2Vec.y, 0, 20);
+            // ctx.fillText("side3Vec: " + platform.side3Vec.x + ", " + platform.side3Vec.y, 0, 40);
             
-            ctx.fillText("side1: " + platform.sideColor1, 0, 60);
-            ctx.fillText("side2: " + platform.sideColor2, 0, 80);
-            ctx.fillText("side3: " + platform.sideColor3, 0, 100);
+            // ctx.fillText("side1: " + platform.sideColor1, 0, 60);
+            // ctx.fillText("side2: " + platform.sideColor2, 0, 80);
+            // ctx.fillText("side3: " + platform.sideColor3, 0, 100);
 
             ctx.restore();
         });
@@ -527,9 +758,29 @@ class Map {
 
         if (this.endZoneIsRendered) { // DRAW ENDZONE
 
-            ctx.save(); // ROTATING 
+
+            ctx.save(); // DRAW ENDZONE SHADOW FIRST
             ctx.translate(this.endZone.x + this.endZone.width/2, this.endZone.y + this.endZone.height/2);
-            ctx.rotate(this.endZone.angle * Math.PI/180);
+
+            ctx.fillStyle = this.style.shadowColor;
+
+        
+            // ctx.filter = "blur(2px)"; // start blur
+
+            ctx.beginPath();
+            
+            ctx.moveTo(this.endZone.shadowPoints[0][0], this.endZone.shadowPoints[0][1]);
+            for (let i = this.endZone.shadowPoints.length - 1; i > 0; i --) {
+                ctx.lineTo(this.endZone.shadowPoints[i][0], this.endZone.shadowPoints[i][1]);
+            }
+
+            ctx.closePath();
+            ctx.fill(); // DONE WITH ENDZONE SHADOW
+            
+            // ctx.filter = "none"; // end blur
+
+
+            ctx.rotate(this.endZone.angle * Math.PI/180);  // ROTATING 
 
             ctx.fillStyle = this.style.endZoneTopColor; // DRAW this.endZone TOP
             ctx.fillRect(-this.endZone.width/2, -this.endZone.height/2, this.endZone.width, this.endZone.height);
@@ -701,7 +952,6 @@ class Player {
     jumpValue = 0;
     jumpVelocity = 2;
     endSlow = 1;
-    sideColor = "rgba(239,238,236,1)";
 
     constructor(x, y, angle) {
         this.x = x;
@@ -720,24 +970,29 @@ class Player {
         
         ctx.translate(midX, midY);
 
-        // DRAWING SHADOW 
+
+        // LOWER SHADOW IS DRAWN BY MAP
+        // DRAWING UPPER SHADOW HERE \/
+        ctx.save()
+        
+        ctx.translate(-player.x, -player.y)
+        ctx.clip(map.upperShadowClip);
+        ctx.translate(player.x , player.y);
+    
         ctx.rotate(this.angle * Math.PI/180); // rotating canvas
 
-        ctx.fillStyle = "#00000040" ;
-        var blurValue = player.jumpValue / 16 + 1
-        ctx.filter = "blur(" + blurValue + "px)";
+        ctx.fillStyle = map.style.shadowColor;
+        // var blurValue = player.jumpValue / 16 + 1
+        // ctx.filter = "blur(" + blurValue + "px)";
         ctx.fillRect(-15, -15, 30, 30)
-        ctx.filter = "none";
+        // ctx.filter = "none";
 
-
-
-        ctx.rotate(-this.angle * Math.PI/180); // RE-rotating canvas
-
+        ctx.restore() // clears upperShadowClip
 
         // DRAWING PLAYER TOP
         ctx.translate(0, -this.jumpValue - 32); 
         ctx.rotate(this.angle * Math.PI/180); // rotating canvas
-        ctx.fillStyle = this.sideColor;
+        ctx.fillStyle = map.style.playerColor;
         ctx.fillRect(-16,-16,32,32)
         // ctx.drawImage(document.getElementById("playerTop"), -16, -16);
 
@@ -749,10 +1004,14 @@ class Player {
         var angleRad = this.angle * (Math.PI/180);
         var loopedAngle = this.angle - (Math.round(this.angle/360) * 360);
 
+
+        // GETTING CORNERS OF ROTATED RECTANGLE
+        // https://stackoverflow.com/questions/41898990/find-corners-of-a-rotated-rectangle-given-its-center-point-and-rotation
+
         if (-90 < loopedAngle && loopedAngle < 90) { // BOT WALL
 
             var sideVector = new Vector(0,1).rotate(this.angle)
-            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
             ctx.moveTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
@@ -766,7 +1025,7 @@ class Player {
         if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
 
             var sideVector = new Vector(1,0).rotate(this.angle)
-            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
             ctx.moveTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
@@ -780,7 +1039,7 @@ class Player {
         if (90 < loopedAngle || loopedAngle < -90) { // TOP WALL
             
             var sideVector = new Vector(0,-1).rotate(this.angle)
-            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
             
             ctx.beginPath();
             ctx.moveTo(midX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
@@ -794,7 +1053,7 @@ class Player {
         if (-180 < loopedAngle && loopedAngle < 0) { // LEFT WALL
 
             var sideVector = new Vector(-1,0).rotate(this.angle)
-            ctx.fillStyle = map.calculateShadedColor(sideVector, this.sideColor)
+            ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
             ctx.moveTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
@@ -1132,12 +1391,7 @@ class Vector {
         return new Vector(Math.round(10000*(this.x * cos - this.y * sin))/10000, Math.round(10000*(this.x * sin + this.y * cos))/10000);
     }
 
-    angleDifference = function(otherVec) { // returns degrees i guess
-        // console.log("====================")
-        // console.log("dot product: " + this.dotProduct(otherVec))
-        // console.log("mag 1: " + this.magnitude())
-        // console.log("mag 2: " + otherVec.magnitude())
-        // console.log("vectors mags multiplied: " + (this.magnitude() * otherVec.magnitude()))
+    angleDifference = function(otherVec) { // returns degrees i guess idk
         return Math.acos((this.dotProduct(otherVec)) / (this.magnitude() * otherVec.magnitude()))
     }
 

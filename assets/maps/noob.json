@@ -1,8 +1,8 @@
 {
     "playerStart": {
-        "x": 340,
+        "x": 120,
         "y": 1200,
-        "angle": -90
+        "angle": -100
     },
 
     "endZone": {
@@ -19,11 +19,15 @@
         "endZoneTopColor": "rgba(255,218,98,1)",
         "endZoneSideColor": "rgba(255,218,98,1)",
         "backgroundColor": "#a3d5e1",
-        "shadowColor": "#07070a15",
+        "shadowColor": "#07070a25",
+        "playerColor": "rgba(239,238,236,1)",
 
-        "lightAngle": 185,
         "platformHeight": 25,
-        "shadowLength": 0
+
+        "lightAngle": 45,
+        "shadowContrastLight": -0.005,
+        "shadowContrastDark": -0.4,
+        "shadowLength": 25
     },
 
     "platforms": [
@@ -37,7 +41,7 @@
 
         {
             "x": 198,
-            "y": 171,
+            "y": 141,
             "width": 180,
             "height": 140,
             "angle": -60
@@ -48,20 +52,20 @@
             "y": 373,
             "width": 260,
             "height": 264,
-            "angle": -45
+            "angle": -60
         },
 
         {
-            "x": 500,
-            "y": 629,
+            "x": 550,
+            "y": 420,
             "width": 464,
             "height": 164,
             "angle": -20
         },
 
         {
-            "x": 336,
-            "y": 736,
+            "x": 406,
+            "y": 680,
             "width": 240,
             "height": 128,
             "angle": 22
@@ -84,11 +88,11 @@
         },
 
         {
-            "x": 216,
-            "y": 1026,
-            "width": 200,
-            "height": 408,
-            "angle":90
+            "x": 116,
+            "y": 1126,
+            "width": 400,
+            "height": 208,
+            "angle":10
         }
 
     ]
