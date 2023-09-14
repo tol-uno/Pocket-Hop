@@ -5,14 +5,6 @@
         "angle": -100
     },
 
-    "endZone": {
-        "x": 10,
-        "y": 750,
-        "width": 150,
-        "height": 150,
-        "angle": 20
-    },
-
     "style":{
         "platformTopColor": "rgba(209,70,63,1)",
         "platformSideColor": "rgba(209,70,63,1)",
@@ -36,7 +28,8 @@
             "y": 16,
             "width": 328,
             "height": 328,
-            "angle": -90 
+            "angle": -90,
+            "endzone": 1
         },
 
         {

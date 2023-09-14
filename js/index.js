@@ -226,6 +226,7 @@ var UserInterface = {
                 canvasArea.ctx.fillText("touch y: " + touchHandler.touchY, textX, 220);
                 canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
+                canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
                 
             }
     
@@ -349,7 +350,8 @@ class Map {
     name;
     record;
     upperShadowClip = new Path2D();
-    
+    endZone;
+
 
     calculateShadedColor(sideNormalVector, color) {
 
@@ -394,7 +396,6 @@ class Map {
 
 
             var playerStart = jsonData.playerStart; // 3 temporary vars that get combined into mapData and pushed out of async function
-            var endZone = jsonData.endZone;
             var platforms = [];
             var style = jsonData.style;
 
@@ -403,7 +404,7 @@ class Map {
                 platforms.push(platform);
             });
 
-            var mapData = [playerStart, endZone, platforms, style]; // all the data to be sent out from this async function (platforms, player start, end zone)
+            var mapData = [playerStart, platforms, style]; // all the data to be sent out from this async function (platforms, player start, end zone)
 
             return mapData;
         }
@@ -411,10 +412,8 @@ class Map {
 
         parsePlatforms().then(mapData => { // WAITS FOR ASYNC FUNCTION. Big function that handles setting up the map and pre rendering calculations
             this.playerStart = mapData[0];
-            this.endZone = mapData[1];
-            this.endZone.hypotenuse = Math.sqrt(this.endZone.width * this.endZone.width + this.endZone.height * this.endZone.height)/2 // for checking whether to render endZone
-            this.platforms = mapData[2];
-            this.style = mapData[3];
+            this.platforms = mapData[1];
+            this.style = mapData[2];
 
 
             // Calculate lighting for each platform and the endzone
@@ -425,6 +424,12 @@ class Map {
             var platformIndex = 1 // kinda debug for map making
             this.platforms.forEach(platform => { // CALCULATE PLATFORMS COLORS and SHADOW POLYGON
 
+                var colorToUse = this.style.platformSideColor;
+                if(platform.endzone) {
+                    colorToUse = this.style.endZoneSideColor;
+                    this.endZone = platform;
+                }
+
                 platform.index = platformIndex; // asigns an index to each platform for debugging
                 platformIndex ++;
 
@@ -433,9 +438,9 @@ class Map {
                 platform.side2Vec = new Vector(0,1).rotate(platform.angle)
                 platform.side3Vec = new Vector(1,0).rotate(platform.angle)
 
-                platform.sideColor1 = this.calculateShadedColor(platform.side1Vec, map.style.platformSideColor) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
-                platform.sideColor2 = this.calculateShadedColor(platform.side2Vec, map.style.platformSideColor)
-                platform.sideColor3 = this.calculateShadedColor(platform.side3Vec, map.style.platformSideColor)
+                platform.sideColor1 = this.calculateShadedColor(platform.side1Vec, colorToUse) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
+                platform.sideColor2 = this.calculateShadedColor(platform.side2Vec, colorToUse)
+                platform.sideColor3 = this.calculateShadedColor(platform.side3Vec, colorToUse)
 
                 // SHADOW POLYGON
                 var angleRad = platform.angle * (Math.PI/180);
@@ -519,74 +524,8 @@ class Map {
 
             });
 
-            // ENDZONE COLORS
-            var side1Vec = new Vector(-1,0).rotate(this.endZone.angle) 
-            var side2Vec = new Vector(0,1).rotate(this.endZone.angle)
-            var side3Vec = new Vector(1,0).rotate(this.endZone.angle)
-
-            this.endZone.sideColor1 = this.calculateShadedColor(side1Vec, map.style.endZoneSideColor) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
-            this.endZone.sideColor2 = this.calculateShadedColor(side2Vec, map.style.endZoneSideColor)
-            this.endZone.sideColor3 = this.calculateShadedColor(side3Vec, map.style.endZoneSideColor)
-
-
-            // ENDZONE SHADOW POLYGON
-            var angleRad = this.endZone.angle * (Math.PI/180);
-
-            this.endZone.shadowPoints = [ // ALL THE POSSIBLE POINTS TO INPUT IN CONVEX HULL FUNCTION
-            
-                // bot left corner
-                [
-                -((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)),
-                -((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
-                ],
-
-                // bot right corner
-                [
-                ((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)),
-                ((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
-                ],
-
-                // top right corner
-                [
-                ((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)),
-                ((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
-                ],
-
-                // bot left corner
-                [
-                -((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)),
-                -((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
-                ],
-
-                // bot left SHADOW
-                [
-                -((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
-                -((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
-                ],
-
-                // bot right SHADOW
-                [
-                ((this.endZone.width / 2) * Math.cos(angleRad)) - ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
-                ((this.endZone.width / 2) * Math.sin(angleRad)) + ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
-                ],
-
-                // top right SHADOW
-                [
-                ((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
-                ((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
-                ],
-
-                // bot left SHADOW
-                [
-                -((this.endZone.width / 2) * Math.cos(angleRad)) + ((this.endZone.height / 2) * Math.sin(angleRad)) + shadowX,
-                -((this.endZone.width / 2) * Math.sin(angleRad)) - ((this.endZone.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
-                ],
-
-            ]; // end of shadowPoints array
-
-            this.endZone.shadowPoints = canvasArea.convexHull(this.endZone.shadowPoints)
-
             canvasArea.canvas.style.backgroundColor = this.style.backgroundColor;
+            document.body.style.backgroundColor = this.style.backgroundColor;
             player = new Player(this.playerStart.x, this.playerStart.y, this.playerStart.angle);
 
             // Get map record from local storage
@@ -596,14 +535,12 @@ class Map {
         });
     }
 
-    update() { // Figure out which platforms (and if endzone) are in view
+    update() { // Figure out which platforms are in view. This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if(){} i guess...
 
         this.renderedPlatforms = [];
 
         this.platforms.forEach(platform => { // Loop through platforms
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
-            var shadowlengthX = this.style.lightAngleVector.x * this.style.shadowLength; // could add these calculations directly into check but gets messy
-            var shadowlengthY = this.style.lightAngleVector.y * this.style.shadowLength;
 
             if (
                 (platform.x + platform.width/2 + hypotenuse + this.style.shadowLength > player.x - midX) && // coming into frame on left side
@@ -614,37 +551,22 @@ class Map {
                 this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
             }
         });
-
-        if ( // Test if end zone should be rendered
-            (this.endZone.x + this.endZone.width/2 + this.endZone.hypotenuse > player.x - midX) && // left
-            (this.endZone.x + this.endZone.width/2 - this.endZone.hypotenuse < player.x + midX) && // right
-            (this.endZone.y + this.endZone.height/2 + this.endZone.hypotenuse > player.y - midY) && // top
-            (this.endZone.y + this.endZone.height/2 - this.endZone.hypotenuse < player.y + midY) // bottom
-        ) {
-            this.endZoneIsRendered = true; // End Zone is in view and should be rendered
-        } else {this.endZoneIsRendered = false}
     }
 
-    render() { // Render the platforms that are in view 
+    render() { // Render the platforms that are in view (and player lower shadow)
     
-        const ctx = canvasArea.ctx;
+        this.endZoneIsRendered = false; // resets every frame. if the endzone is being rendered it activates it. otherwise it stays false
 
+        const ctx = canvasArea.ctx;
 
         ctx.save();
         ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
-        
+    
 
-        //DEBUG FOR UPPER SHADOW CLIP
-        // ctx.strokeStyle = "green"
-        // ctx.stroke(this.upperShadowClip)
-
-
-
-        ctx.save(); // Saves the state of the canvas
-            
-        ctx.translate(player.x , player.y + this.style.platformHeight)
 
         // DRAWING LOWER PLAYER SHADOW
+        ctx.save(); // Saves the state of the canvas for drawing player shadow. Weird to draw it here but whatever. Could also put this above the first translate ^^
+        ctx.translate(player.x , player.y + this.style.platformHeight)
         ctx.rotate(player.angle * Math.PI/180); // rotating canvas
 
         ctx.fillStyle = this.style.shadowColor;
@@ -653,14 +575,13 @@ class Map {
         // ctx.filter = "blur(" + blurValue + "px)";
         ctx.fillRect(-15, -15, 30, 30)
         // ctx.filter = "none";
-        ctx.restore();
+        ctx.restore(); // restore back to top corner of map for drawing the platforms
 
 
-        this.renderedPlatforms.forEach(platform => { // LOOP THROUGHT TO DRAW SHADOWS FIRST
+        this.renderedPlatforms.forEach(platform => { // LOOP THROUGHT TO DRAW SHADOWS FIRST. This prevents shadows getting on top of other platforms
 
             ctx.save();
             ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
-
 
             ctx.fillStyle = this.style.shadowColor;
 
@@ -680,13 +601,23 @@ class Map {
             ctx.restore();
         })
 
+
+
         this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS (DRAW ACTUAL PLATFORMS)
 
+            // DRAW PLATFORM TOP
             ctx.save(); // ROTATING 
             ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
             ctx.rotate(platform.angle * Math.PI/180);
 
-            ctx.fillStyle = this.style.platformTopColor; // DRAW PLATFORM TOP
+            // Change to endzone color if needed. Also where its determined if endzone is being rendered
+            if (platform.endzone) {
+                ctx.fillStyle = this.style.endZoneTopColor;
+                this.endZoneIsRendered = true;
+            } else {
+                ctx.fillStyle = this.style.platformTopColor;
+            }
+            
             ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
 
             ctx.restore();
@@ -699,7 +630,7 @@ class Map {
             var angleRad = platform.angle * (Math.PI/180);
             
             // platform angles should only be max of 90 and -90 in mapData
-            // calculating shading works with any angle but sides arent draw because drawing if statements are hardcoded to 90 degrees
+            // calculating shading works with any angle but sides arent draw because drawing "if statements" are hardcoded to 90 degrees
 
 
             if (-90 < platform.angle && platform.angle < 90) { // ALMOST ALWAYS RENDER BOTTOM SIDE. side2
@@ -739,7 +670,6 @@ class Map {
                 ctx.fill();
             }
 
-
             // PLAFORM RENDERING DEBUG TEXT
             // ctx.fillStyle = "#FFFFFF";
             // ctx.fillText("index: " + platform.index, 0, -40);
@@ -754,92 +684,6 @@ class Map {
 
             ctx.restore();
         });
-
-
-        if (this.endZoneIsRendered) { // DRAW ENDZONE
-
-
-            ctx.save(); // DRAW ENDZONE SHADOW FIRST
-            ctx.translate(this.endZone.x + this.endZone.width/2, this.endZone.y + this.endZone.height/2);
-
-            ctx.fillStyle = this.style.shadowColor;
-
-        
-            // ctx.filter = "blur(2px)"; // start blur
-
-            ctx.beginPath();
-            
-            ctx.moveTo(this.endZone.shadowPoints[0][0], this.endZone.shadowPoints[0][1]);
-            for (let i = this.endZone.shadowPoints.length - 1; i > 0; i --) {
-                ctx.lineTo(this.endZone.shadowPoints[i][0], this.endZone.shadowPoints[i][1]);
-            }
-
-            ctx.closePath();
-            ctx.fill(); // DONE WITH ENDZONE SHADOW
-            
-            // ctx.filter = "none"; // end blur
-
-
-            ctx.rotate(this.endZone.angle * Math.PI/180);  // ROTATING 
-
-            ctx.fillStyle = this.style.endZoneTopColor; // DRAW this.endZone TOP
-            ctx.fillRect(-this.endZone.width/2, -this.endZone.height/2, this.endZone.width, this.endZone.height);
-
-            ctx.restore();
-
-
-            // SIDES OF ENDZONE
-            ctx.save();
-            ctx.translate(this.endZone.x + this.endZone.width/2, this.endZone.y + this.endZone.height/2);
-
-            var angleRad = this.endZone.angle * (Math.PI/180);
-            
-            // this.endZone angles should only be max of 90 and -90 in mapData
-            // calculating shading works with any angle but sides arent draw because drawing if statements are hardcoded to 90 degrees
-
-
-            if (-90 < this.endZone.angle && this.endZone.angle < 90) { // ALMOST ALWAYS RENDER BOTTOM SIDE. side2
-                ctx.fillStyle = this.endZone.sideColor2; // sideColor2
-
-                ctx.beginPath();
-                ctx.moveTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot right
-                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot left
-                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-
-            if (0 < this.endZone.angle && this.endZone.angle <= 90) { // side3
-
-                ctx.fillStyle = this.endZone.sideColor3; // sideColor3
-                ctx.beginPath();
-                ctx.moveTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot right
-                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad))); // top right
-                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.lineTo(this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            if (-90 <= this.endZone.angle && this.endZone.angle < 0) { // side1
-
-                ctx.fillStyle = this.endZone.sideColor1; // sideColor1  
-                ctx.beginPath();
-                ctx.moveTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad))); // bot left
-                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad))); // top left
-                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) + (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) - (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.lineTo(-this.endZone.width/2 * Math.cos(angleRad) - (this.endZone.height/2 * Math.sin(angleRad)), -this.endZone.width/2 * Math.sin(angleRad) + (this.endZone.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-
-            ctx.restore();
-
-
-        }
 
         ctx.restore(); // RESTORING VIEW FOLLOWING PLAYER I THINK
     }
@@ -1093,7 +937,7 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    // btn_restart.pressed();
+                    btn_restart.pressed();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
