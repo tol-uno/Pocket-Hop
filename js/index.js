@@ -4,12 +4,24 @@ let sensitivity = 1;
 let airAcceleration = 0.1;
 let gravity = 0.05;
 let prevDateNow;
+let dt = 1;
+let fpsNerf = 1.5 // higher = more nerf
 
 var midX = 0;
 var midY = 0;
 
 function onDeviceReady() { // Called on page load in HMTL
-    document.querySelector("body").onresize = function() {canvasArea.resize()};
+    // document.querySelector("body").onresize = function() {canvasArea.resize()};
+
+    window.addEventListener("orientationchange", e => {
+        canvasArea.resize()
+    })
+    // console.log(screen.orientation)
+    if (screen.orientation){
+        screen.orientation.addEventListener("change", (event) => {
+            canvasArea.resize();
+        });
+    }
 
     touchHandler = new InputHandler;
     UserInterface.start();
@@ -41,13 +53,22 @@ var canvasArea = { //Canvas Object
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     },
 
+
     resize : function() {
         console.log("resized :)");
 
+        // this.canvas.width = window.screen.availWidth;
+        // this.canvas.height = window.screen.availHeight;
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        midX = canvasArea.canvas.width / 2;
-        midY = canvasArea.canvas.height / 2;
+
+        midX = this.canvas.width / 2;
+        midY = this.canvas.height / 2;
+
+        // console.log("window width: " + window.screen.availWidth)
+        // console.log("window height: " + window.screen.availHeight)
+        // console.log("canvas width: " + this.canvas.width)
+        // console.log("canvas height: " + this.canvas.height)
 
     },
 
@@ -95,15 +116,63 @@ var UserInterface = {
     // 5: loading map page
     // 6: in level
 
-    debugText : false,
-    strafeHUD : false,
-    volume : 0.1,
+    sensitivity : null,
+    debugText : null,
+    strafeHUD : null,
+    volume : null,
     
     timer : 0,
     timerStart : Date.now(), // dont need to pull date here
     levelState : 1, // 1 = pre-start, 2 = playing level, 3 = in endzone
 
     start : function() {
+
+
+        // window.localStorage.removeItem("record_original")
+        // window.localStorage.setItem("record_" + map.name, UserInterface.timer)
+        // window.localStorage.getItem("record_" + map.name)
+
+        // sensitivity = window.localStorage.getItem("sensitivity_storage")
+        // debugText = window.localStorage.getItem("debugText_storage")
+        // strafeHUD = window.localStorage.getItem("strafeHUD_storage")
+        // volume = window.localStorage.getItem("volume")
+
+
+// OLD VERSION OF SETTINGS USING JSON
+        // // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
+        // async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
+        //     // let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/settings.json"
+        //     // OLD LOCAL STORAGE URL USED FOR TESTING
+        //     let mapURL = "assets/settings.json";
+
+        //     try {
+        //         let response = await fetch(mapURL);
+        //         return await response.json();
+        //     } catch (error) {
+        //         console.log(error);
+        //     }
+        // }
+
+        // // LOOP THROUGH JSON DATA AND ADD NEW PLATFORM OBJECTS
+        // async function parsePlatforms() {
+        //     let jsonData = await getJsonData(); // SEE ABOVE ^^
+
+        //     sensitivity = jsonData.sensitivity;
+        //     volume = jsonData.volume;
+        //     debugText = jsonData.debugText;
+        //     strafeHUD = jsonData.strafeHUD;
+
+        // }
+
+        // parsePlatforms().then(e => { // WAITS FOR ASYNC FUNCTION
+        //     this.sensitivity = sensitivity;
+        //     this.volume = volume;
+        //     this.debugText = debugText;
+        //     this.strafeHUD = strafeHUD;
+        // });
+    
+
+
 
         // CREATING THE BUTTONS
         btn_levelSelect = new Button(200, 150, 200, 100, "PLAY", function() { 
@@ -114,6 +183,7 @@ var UserInterface = {
         btn_settings = new Button(420, 150, 200, 100, "Clear Records", function() {
             window.localStorage.removeItem("record_original")
             window.localStorage.removeItem("record_noob")
+            window.localStorage.removeItem("record_hellscape")
             console.log("records cleared")
         })
 
@@ -136,7 +206,7 @@ var UserInterface = {
             UserInterface.renderedButtons = [btn_mainMenu];
         })
 
-        btn_mainMenu = new Button(30, 40, 80, 60, "menu", function() { 
+        btn_mainMenu = new Button(50, 40, 80, 60, "menu", function() { 
             UserInterface.gamestate = 1;
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
@@ -145,13 +215,13 @@ var UserInterface = {
             UserInterface.renderedButtons = [btn_levelSelect, btn_settings];
         })
 
-        btn_restart = new Button(30, 200, 80, 60, "restart", function() { 
+        btn_restart = new Button(50, 200, 80, 60, "restart", function() { 
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
             player.restart();
         })
 
-        btn_jump = new Button(30, 300, 80, 60, "jump", function() { 
+        btn_jump = new Button(50, 300, 80, 60, "jump", function() { 
             if (UserInterface.levelState == 1) {
                 UserInterface.timerStart = Date.now();
                 UserInterface.levelState = 2;
@@ -211,13 +281,13 @@ var UserInterface = {
         if (this.gamestate == 6) { // In Level
 
             if (this.debugText) { // DRAWING DEBUG TEXT
-                var textX = canvasArea.canvas.width * 0.17; 
+                var textX = canvasArea.canvas.width * 0.18; 
                 canvasArea.ctx.font = "15px sans-serif";
                 canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
     
                 canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, textX, 60);
                 canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
-                canvasArea.ctx.fillText("delta time: " + Math.round(dt), textX, 100);
+                canvasArea.ctx.fillText("rounded delta time: " + Math.round(dt), textX, 100);
                 canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
                 canvasArea.ctx.fillText("angle: " + player.angle, textX, 140);
                 canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
@@ -227,14 +297,17 @@ var UserInterface = {
                 canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
-                
+                canvasArea.ctx.fillText("dragAmount Adjusted: " + touchHandler.dragAmount * sensitivity / dt, textX, 300);
+                // canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
+                canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmount * sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
             }
     
     
             if (this.strafeHUD) { // STRAFE OPTIMIZER HUD
                 var strafeThreshold = 0.9 ** (0.08 * player.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
-    
-                if (Math.abs(touchHandler.dragAmount) * sensitivity < (strafeThreshold * dt)) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
+                // var strafeThreshold = 5;
+                
+                if (Math.abs(touchHandler.dragAmount) * sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
                     if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * sensitivity < strafeThreshold * dt * 0.4) {
                         canvasArea.ctx.fillStyle = "#00FF00"; // GREEN
                     } else {
@@ -246,6 +319,7 @@ var UserInterface = {
     
                 canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * sensitivity); // YOUR STRAFE
                 canvasArea.ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
+                canvasArea.ctx.fillRect(midX +16, midY + 28, 8, 50 * player.gain); // GAIN
             }
 
             if (player.endSlow == 0) { // level name, your time, best time, strafe efficiency
@@ -699,7 +773,6 @@ class InputHandler {
     touchIDs = []; // first elements are the oldest touches
     currentDragID = null;
 
-
     getReferencedTouchID(touchEventsID) { // figures out which object within touchIDs[] the current event is referencing
         return this.touchIDs.filter(function(touch) { // filter touchIDs to find touch that has ID that matches the event's ID
             return touch.id == touchEventsID
@@ -785,7 +858,8 @@ class InputHandler {
         }
 
         // FOR TESTING
-        // this.dragAmount = 5;
+        // this.dragAmount = 3 * dt;
+        // console.log(2 * dt)
     }
 
 }
@@ -796,6 +870,8 @@ class Player {
     jumpValue = 0;
     jumpVelocity = 2;
     endSlow = 1;
+    gain = 0;
+    averageGain = [];
 
     constructor(x, y, angle) {
         this.x = x;
@@ -926,6 +1002,22 @@ class Player {
         if (UserInterface.levelState == 2) {
             if (this.speed >= 0) { // PREVENTS GOING BACKWARDS
                 this.speed += this.calculateGain(touchHandler.dragAmount, dt);
+                
+               
+                // SHOWING AVERAGE GAIN OVER A CERTAIN AMOUNT OF FRAMES
+                // if (this.averageGain.length < 10) { // adds 50 inputs to averageGain
+                //     this.averageGain.push(this.calculateGain(touchHandler.dragAmount, dt)/dt)
+                // } else {
+                //     var gain = 0;
+                //     for (let i=0; i < this.averageGain.length; i++) {
+                //         gain += this.averageGain[i]
+                //     }
+                //     gain = gain/this.averageGain.length;
+                //     // console.log(gain*100);
+                //     this.averageGain = [];
+                // }
+
+
             } else {this.speed = 0}
         
             this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt; // MOVE FORWARD AT ANGLE BASED ON SPEED
@@ -937,7 +1029,7 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    btn_restart.pressed();
+                    // btn_restart.pressed();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
@@ -954,7 +1046,8 @@ class Player {
         }
 
         if (UserInterface.levelState == 3) { // SLOW DOWN MOVEMENT AFTER HITTING END ZONE
-            if (this.endSlow > 0.02) {this.endSlow = (this.endSlow * 0.95);} else {this.endSlow = 0} // THIS NEEDS TO BE FPS INDEPENDENT
+            // if (this.endSlow > 0.02) {this.endSlow = (this.endSlow * 0.95);} else {this.endSlow = 0} // THIS NEEDS TO BE FPS INDEPENDENT
+            if (this.endSlow > 0.02) {this.endSlow = (this.endSlow - 0.02 * dt);} else {this.endSlow = 0}
 
             this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt * this.endSlow; // MOVE FORWARD AT ANGLE BASED ON SPEED
             this.y += Math.sin(this.angle * (Math.PI / 180)) * this.speed/50 * dt * this.endSlow;
@@ -969,14 +1062,17 @@ class Player {
         }
     }
 
-    calculateGain(drag, dt) { // COULD MAYBE PUT THIS INSIDE OF updatePos() to avoid having to pass dt
+    calculateGain(drag, dt) { // COULD MAYBE PUT THIS INSIDE OF updatePos() to avoid having to pass dt.
         
         var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both -- maybe just add as var somwhere
+        // var strafeThreshold = 5;
 
-        if (Math.abs(drag) * sensitivity < strafeThreshold * dt) {
+
+        if (Math.abs(drag) * sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) {
             // console.log(Math.abs(drag) * sensitivity * airAcceleration)
             return Math.abs(drag) * sensitivity * airAcceleration;
         } else {
+            console.log("overstrafe!")
             return -Math.abs(drag) * sensitivity * airAcceleration;
         }
     }
@@ -1256,7 +1352,7 @@ function updateGameArea() { // CALLED EVERY FRAME
     UserInterface.update();
 
     if (UserInterface.gamestate == 6) {
-        var dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
+        dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
         prevDateNow = Date.now();
 
         map.update();

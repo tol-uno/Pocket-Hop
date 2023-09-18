@@ -11,6 +11,8 @@ html, body {
     overflow: hidden;
     background: #3f9ba5;
 
+    /* padding: env(safe-area-inset); */
+
 }
 
 body { /* all these are from cordova's default css file*/
@@ -19,7 +21,7 @@ body { /* all these are from cordova's default css file*/
     -webkit-user-select: none;                  /* prevent copy paste, to allow, change 'none' to 'text' */
 
      /* Padding to avoid the "unsafe" areas behind notches in the screen */
-     padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+     /* padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); */
 }
 
 canvas {
