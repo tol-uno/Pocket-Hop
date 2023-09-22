@@ -24,11 +24,11 @@ function onDeviceReady() { // Called on page load in HMTL
     }
 
     touchHandler = new InputHandler;
-    UserInterface.start();
     AudioHandler.setVolumes();
 
     player = null; // Needs to be created by map
     canvasArea.start();
+    UserInterface.start(); // need to be ran after canvas is resized in canvasArea.start()
 }
 
 
@@ -106,6 +106,54 @@ var canvasArea = { //Canvas Object
 }
 
 
+
+
+class SliderUI {
+    constructor(x, y, width, min, max, label, variable, func) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.min = min;
+        this.max = max;
+        this.label = label;
+        this.value = variable;
+        this.func = func;
+
+    }
+
+    render() {
+        canvasArea.ctx.strokeStyle = "#BBBBBB";
+        canvasArea.ctx.lineWidth = 6;
+        // canvasArea.ctx.fillStyle = "#FFFFFF";
+        
+        canvasArea.ctx.beginPath(); // Slider Line
+        canvasArea.ctx.moveTo(this.x, this.y)
+        canvasArea.ctx.lineTo(this.x + this.width, this.y)
+        canvasArea.ctx.stroke();
+
+        // canvasArea.ctx.save();
+        // canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
+        // canvasArea.ctx.shadowBlur = 10;
+        // canvasArea.ctx.fill();
+        // canvasArea.ctx.restore();
+
+
+        canvasArea.ctx.beginPath();
+        canvasArea.ctx.arc(this.x + this.width / ((this.max - this.min)/this.value), this.y, 10, 0, 2 * Math.PI);
+        canvasArea. ctx.stroke(); 
+
+        // this should be drawing an image not text. text is placholder
+        canvasArea.ctx.font = "15px sans-serif";
+        canvasArea.ctx.fillStyle = "black";
+        canvasArea.ctx.fillText(this.label + ": " + this.value, this.x + 10, this.y - 15)
+    }
+
+    pressed() {
+        this.func();
+    }
+}
+
+
 var UserInterface = {
     
     gamestate : 1,
@@ -115,6 +163,7 @@ var UserInterface = {
     // 4: store
     // 5: loading map page
     // 6: in level
+    // 7: in map editor
 
     sensitivity : null,
     debugText : null,
@@ -127,92 +176,111 @@ var UserInterface = {
 
     start : function() {
 
+        // Retreaving settings from local storage OR setting them
+        this.sensitivity = window.localStorage.getItem("sensitivity_storage")
+        if (this.sensitivity == null) {
+            this.sensitivity = 1
+            window.localStorage.setItem("sensitivity_storage", 1)
+        }
 
-        // window.localStorage.removeItem("record_original")
-        // window.localStorage.setItem("record_" + map.name, UserInterface.timer)
-        // window.localStorage.getItem("record_" + map.name)
+        this.debugText = window.localStorage.getItem("debugText_storage")
+        if (this.debugText == null) {
+            this.debugText = 0
+            window.localStorage.setItem("debugText_storage", 0)
+        }
 
-        // sensitivity = window.localStorage.getItem("sensitivity_storage")
-        // debugText = window.localStorage.getItem("debugText_storage")
-        // strafeHUD = window.localStorage.getItem("strafeHUD_storage")
-        // volume = window.localStorage.getItem("volume")
+        this.strafeHUD = window.localStorage.getItem("strafeHUD_storage")
+        if (this.strafeHUD == null) {
+            this.strafeHUD = 0
+            window.localStorage.setItem("strafeHUD_storage", 0)
+        }
 
-
-// OLD VERSION OF SETTINGS USING JSON
-        // // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
-        // async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
-        //     // let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/settings.json"
-        //     // OLD LOCAL STORAGE URL USED FOR TESTING
-        //     let mapURL = "assets/settings.json";
-
-        //     try {
-        //         let response = await fetch(mapURL);
-        //         return await response.json();
-        //     } catch (error) {
-        //         console.log(error);
-        //     }
-        // }
-
-        // // LOOP THROUGH JSON DATA AND ADD NEW PLATFORM OBJECTS
-        // async function parsePlatforms() {
-        //     let jsonData = await getJsonData(); // SEE ABOVE ^^
-
-        //     sensitivity = jsonData.sensitivity;
-        //     volume = jsonData.volume;
-        //     debugText = jsonData.debugText;
-        //     strafeHUD = jsonData.strafeHUD;
-
-        // }
-
-        // parsePlatforms().then(e => { // WAITS FOR ASYNC FUNCTION
-        //     this.sensitivity = sensitivity;
-        //     this.volume = volume;
-        //     this.debugText = debugText;
-        //     this.strafeHUD = strafeHUD;
-        // });
-    
+        this.volume = window.localStorage.getItem("volume_storage")
+        if (this.volume == null) {
+            this.volume = 0.5
+            window.localStorage.setItem("volume_storage", 0.5)
+        }
 
 
 
-        // CREATING THE BUTTONS
-        btn_levelSelect = new Button(200, 150, 200, 100, "PLAY", function() { 
+
+        // CREATING THE BUTTONS []  []  [] 
+
+        // Main Menu
+        btn_levelSelect = new Button(midX - 100, midY - 50, 200, 100, "Play", function() { 
             UserInterface.gamestate = 2;
-            UserInterface.renderedButtons = [btn_level_original, btn_level_noob, btn_level_hellscape]
+            UserInterface.renderedButtons = [btn_mainMenu, btn_level_original, btn_level_noob, btn_level_hellscape]
         })
 
-        btn_settings = new Button(420, 150, 200, 100, "Clear Records", function() {
+        btn_settings = new Button(midX + 130, midY - 50, 200, 100, "Settings", function() {
+            UserInterface.gamestate = 3;
+            UserInterface.renderedButtons = [btn_mainMenu, btn_sensitivitySlider, btn_reset_settings] // debugText and strafeHud shouldnt be this accessible
+
+        })
+
+        btn_mapEditor = new Button(midX - 330, midY - 50, 200, 100, "Map Editor", function() {
+            UserInterface.gamestate = 3;
+            UserInterface.renderedButtons = [btn_mainMenu]
+
+        })
+
+
+        // Settings Buttons 
+        btn_reset_settings = new Button(midX + 100, 200, 80, 80, "Reset", function() {
             window.localStorage.removeItem("record_original")
             window.localStorage.removeItem("record_noob")
             window.localStorage.removeItem("record_hellscape")
-            console.log("records cleared")
+
+            UserInterface.sensitivity = 1
+            window.localStorage.setItem("sensitivity_storage", 1)
+        
+            UserInterface.debugText = 0
+            window.localStorage.setItem("debugText_storage", 0)
+            
+            UserInterface.strafeHUD = 0
+            window.localStorage.setItem("strafeHUD_storage", 0)
+            
+            UserInterface.volume = 0.5
+            window.localStorage.setItem("volume_storage", 0.5)
+            
+            console.log("records and settings cleared")
         })
 
-        btn_level_original = new Button(100, 50, 100, 80, "Original", function() { 
+        btn_sensitivitySlider = new SliderUI(150, 200, 300, 0.01, 3, "Sensitivity", UserInterface.sensitivity, function() { 
+            UserInterface.sensitivity = this.value
+            window.localStorage.setItem("sensitivity_storage", this.value)
+        })
+
+
+        // Map Buttons
+        btn_level_original = new Button(200, 100, 100, 80, "Original", function() { 
             map = new Map("original");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
 
         })
 
-        btn_level_noob = new Button(220, 50, 100, 80, "Noob", function() { 
+        btn_level_noob = new Button(320, 100, 100, 80, "Noob", function() { 
             map = new Map("noob");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
         })
 
-        btn_level_hellscape = new Button(340, 50, 100, 80, "Hellscape", function() { 
+        btn_level_hellscape = new Button(440, 100, 100, 80, "Hellscape", function() { 
             map = new Map("hellscape");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
         })
 
+
+        // In Level Buttons
         btn_mainMenu = new Button(50, 40, 80, 60, "menu", function() { 
             UserInterface.gamestate = 1;
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
             player = null;
             map = null;
-            UserInterface.renderedButtons = [btn_levelSelect, btn_settings];
+            UserInterface.renderedButtons = [btn_mapEditor, btn_levelSelect, btn_settings];
         })
 
         btn_restart = new Button(50, 200, 80, 60, "restart", function() { 
@@ -229,7 +297,7 @@ var UserInterface = {
             }
         })
 
-        this.renderedButtons = [btn_levelSelect, btn_settings]; 
+        this.renderedButtons = [btn_mapEditor, btn_levelSelect, btn_settings]; 
 
     },
 
@@ -259,11 +327,13 @@ var UserInterface = {
     touchReleased : function(x,y) { // TRIGGERED BY InputHandler
 
         this.renderedButtons.forEach(button => {
-            if ( // if x and y touch is within button
-                x >= button.x && x <= button.x + button.width &&
-                y >= button.y && y <= button.y + button.height
-            ) {
-                button.pressed();
+            if (button.constructor.name == "Button") { // only run on buttons not sliders
+                if ( // if x and y touch is within button
+                    x >= button.x && x <= button.x + button.width &&
+                    y >= button.y && y <= button.y + button.height
+                ) {
+                    button.pressed();
+                }
             }
         });
     },
@@ -274,8 +344,10 @@ var UserInterface = {
             button.render();
         });
 
-        if (this.gamestate == 1) { // Main Menu
-            // not doing anything
+        if (this.gamestate == 1) { // In Main Menu
+            canvasArea.ctx.font = "70px sans-serif";
+            canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
+            canvasArea.ctx.fillText("Null's Voyage", canvasArea.canvas.width/4.4, 90);
         }
 
         if (this.gamestate == 6) { // In Level
@@ -298,7 +370,7 @@ var UserInterface = {
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
                 canvasArea.ctx.fillText("dragAmount Adjusted: " + touchHandler.dragAmount * sensitivity / dt, textX, 300);
-                // canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
+                canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
                 canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmount * sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
             }
     
