@@ -1,6 +1,5 @@
 document.addEventListener("deviceready", onDeviceReady, false);
 
-let sensitivity = 1;
 let airAcceleration = 0.1;
 let gravity = 0.05;
 let prevDateNow;
@@ -24,11 +23,12 @@ function onDeviceReady() { // Called on page load in HMTL
     }
 
     touchHandler = new InputHandler;
-    AudioHandler.setVolumes();
 
     player = null; // Needs to be created by map
     canvasArea.start();
     UserInterface.start(); // need to be ran after canvas is resized in canvasArea.start()
+    AudioHandler.setVolumes();
+
 }
 
 
@@ -52,7 +52,6 @@ var canvasArea = { //Canvas Object
     clear : function() { // CLEARS WHOLE CANVAS
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     },
-
 
     resize : function() {
         console.log("resized :)");
@@ -106,9 +105,9 @@ var canvasArea = { //Canvas Object
 }
 
 
-
-
 class SliderUI {
+    confirmed = true;
+
     constructor(x, y, width, min, max, label, variable, func) {
         this.x = x;
         this.y = y;
@@ -117,14 +116,21 @@ class SliderUI {
         this.max = max;
         this.label = label;
         this.value = variable;
+        this.variableToControl = String(variable);
         this.func = func;
-
+        this.sliderX = x + width / ((max - min)/this.value);
     }
+
+    updateState(value) { // updates the button when its value is changed by external source
+        this.value = value;
+        this.sliderX = this.x + this.width / ((this.max - this.min)/this.value);
+    }
+
 
     render() {
         canvasArea.ctx.strokeStyle = "#BBBBBB";
-        canvasArea.ctx.lineWidth = 6;
-        // canvasArea.ctx.fillStyle = "#FFFFFF";
+        canvasArea.ctx.lineWidth = 10;
+        canvasArea.ctx.fillStyle = "#FFFFFF";
         
         canvasArea.ctx.beginPath(); // Slider Line
         canvasArea.ctx.moveTo(this.x, this.y)
@@ -137,19 +143,44 @@ class SliderUI {
         // canvasArea.ctx.fill();
         // canvasArea.ctx.restore();
 
+        canvasArea.ctx.beginPath(); // Slider Handle
+        canvasArea.ctx.arc(this.sliderX, this.y, 15, 0, 2 * Math.PI);
+        canvasArea.ctx.fill();
 
-        canvasArea.ctx.beginPath();
-        canvasArea.ctx.arc(this.x + this.width / ((this.max - this.min)/this.value), this.y, 10, 0, 2 * Math.PI);
-        canvasArea. ctx.stroke(); 
-
-        // this should be drawing an image not text. text is placholder
-        canvasArea.ctx.font = "15px sans-serif";
-        canvasArea.ctx.fillStyle = "black";
-        canvasArea.ctx.fillText(this.label + ": " + this.value, this.x + 10, this.y - 15)
+        canvasArea.ctx.font = "20px sans-serif";
+        canvasArea.ctx.fillStyle = "white";
+        canvasArea.ctx.fillText(this.label + ": " + this.value, this.x, this.y - 30)
     }
 
-    pressed() {
-        this.func();
+    update() {
+        if (touchHandler.dragging) { // User is touching the screen
+            if (Math.abs(touchHandler.touchX - this.sliderX) < 30 && Math.abs(touchHandler.touchY - this.y) < 30) {
+                
+                if (touchHandler.touchX > this.x && touchHandler.touchX < this.x + this.width) {
+
+                    this.sliderX = touchHandler.touchX
+                }
+
+                // MAP TO RANGE: https://stackoverflow.com/questions/10756313/javascript-jquery-map-a-range-of-numbers-to-another-range-of-numbers
+                // (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+                // inmin = this.x
+                // inmax = this.x + this.width
+                // outmin = this.min
+                // outmax = this.max
+
+                this.value = (this.sliderX - this.x) * (this.max - this.min) / (this.width) + this.min;
+                this.value = Math.round(this.value * 10) / 10;
+
+                this.confirmed = false;
+            }
+        } else { // if not dragging (testing for a touch end on slider)
+            if (!this.confirmed) { // and if real values havent been updated
+
+                this.sliderX = Math.round(this.sliderX * 10) / 10; // snapping the position of the visual slider
+                this.func(); // run the functions built into the slider
+                this.confirmed = true;
+            }
+        }
     }
 }
 
@@ -196,6 +227,7 @@ var UserInterface = {
         }
 
         this.volume = window.localStorage.getItem("volume_storage")
+        console.log("volume " + this.volume)
         if (this.volume == null) {
             this.volume = 0.5
             window.localStorage.setItem("volume_storage", 0.5)
@@ -207,18 +239,18 @@ var UserInterface = {
         // CREATING THE BUTTONS []  []  [] 
 
         // Main Menu
-        btn_levelSelect = new Button(midX - 100, midY - 50, 200, 100, "Play", function() { 
+        btn_levelSelect = new Button(midX - 100, midY - 50, 200, 100, "Play", 0, function() { 
             UserInterface.gamestate = 2;
             UserInterface.renderedButtons = [btn_mainMenu, btn_level_original, btn_level_noob, btn_level_hellscape]
         })
 
-        btn_settings = new Button(midX + 130, midY - 50, 200, 100, "Settings", function() {
+        btn_settings = new Button(midX + 130, midY - 50, 200, 100, "Settings", 0, function() {
             UserInterface.gamestate = 3;
-            UserInterface.renderedButtons = [btn_mainMenu, btn_sensitivitySlider, btn_reset_settings] // debugText and strafeHud shouldnt be this accessible
+            UserInterface.renderedButtons = [btn_mainMenu, btn_sensitivitySlider, btn_volumeSlider, btn_debugText, btn_strafeHUD, btn_reset_settings] // debugText and strafeHud shouldnt be this accessible
 
         })
 
-        btn_mapEditor = new Button(midX - 330, midY - 50, 200, 100, "Map Editor", function() {
+        btn_mapEditor = new Button(midX - 330, midY - 50, 200, 100, "Map Editor", 0, function() {
             UserInterface.gamestate = 3;
             UserInterface.renderedButtons = [btn_mainMenu]
 
@@ -226,13 +258,14 @@ var UserInterface = {
 
 
         // Settings Buttons 
-        btn_reset_settings = new Button(midX + 100, 200, 80, 80, "Reset", function() {
+        btn_reset_settings = new Button(canvasArea.canvas.width - 150, canvasArea.canvas.height - 150, 80, 80, "Reset", 0, function() {
             window.localStorage.removeItem("record_original")
             window.localStorage.removeItem("record_noob")
             window.localStorage.removeItem("record_hellscape")
 
             UserInterface.sensitivity = 1
             window.localStorage.setItem("sensitivity_storage", 1)
+            btn_sensitivitySlider.updateState(1)
         
             UserInterface.debugText = 0
             window.localStorage.setItem("debugText_storage", 0)
@@ -244,29 +277,71 @@ var UserInterface = {
             window.localStorage.setItem("volume_storage", 0.5)
             
             console.log("records and settings cleared")
+
         })
 
-        btn_sensitivitySlider = new SliderUI(150, 200, 300, 0.01, 3, "Sensitivity", UserInterface.sensitivity, function() { 
+        btn_sensitivitySlider = new SliderUI(180, 100, 300, 0.1, 3, "Sensitivity", UserInterface.sensitivity, function() { 
             UserInterface.sensitivity = this.value
             window.localStorage.setItem("sensitivity_storage", this.value)
         })
 
 
+        btn_volumeSlider = new SliderUI(180, 200, 300, 0, 1, "Volume", UserInterface.volume, function() { 
+            UserInterface.volume = this.value
+            window.localStorage.setItem("volume_storage", this.value)
+            AudioHandler.setVolumes();
+        })
+
+        btn_debugText = new Button(180, 270, 80, 80, "Debug Text", 1, function(init) {
+            if (init) {
+                    this.toggle = UserInterface.debugText;
+                } else {
+                if (this.toggle) {
+                    this.toggle = 0;
+                    UserInterface.debugText = 0
+                    window.localStorage.setItem("debugText_storage", 0)
+                } else {
+                    this.toggle = 1;
+                    UserInterface.debugText = 1
+                    window.localStorage.setItem("debugText_storage", 1)
+                }
+            }
+        })
+
+        btn_strafeHUD = new Button(300, 270, 80, 80, "Strafe Helper", 1, function(init) {
+            if (init) {
+                this.toggle = UserInterface.strafeHUD;
+            } else {
+                if (this.toggle == 1) {
+                    this.toggle = 0;
+                    UserInterface.strafeHUD = 0
+                    window.localStorage.setItem("strafeHUD_storage", 0)
+                } else {
+                    this.toggle = 1;
+                    UserInterface.strafeHUD = 1
+                    window.localStorage.setItem("strafeHUD_storage", 1)
+                }
+            }
+        })
+
+
+
+
         // Map Buttons
-        btn_level_original = new Button(200, 100, 100, 80, "Original", function() { 
+        btn_level_original = new Button(200, 100, 100, 80, "Original", 0, function() { 
             map = new Map("original");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
 
         })
 
-        btn_level_noob = new Button(320, 100, 100, 80, "Noob", function() { 
+        btn_level_noob = new Button(320, 100, 100, 80, "Noob", 0, function() { 
             map = new Map("noob");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
         })
 
-        btn_level_hellscape = new Button(440, 100, 100, 80, "Hellscape", function() { 
+        btn_level_hellscape = new Button(440, 100, 100, 80, "Hellscape", 0, function() { 
             map = new Map("hellscape");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
@@ -274,7 +349,7 @@ var UserInterface = {
 
 
         // In Level Buttons
-        btn_mainMenu = new Button(50, 40, 80, 60, "menu", function() { 
+        btn_mainMenu = new Button(50, 40, 80, 60, "menu", 0, function() { 
             UserInterface.gamestate = 1;
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
@@ -283,13 +358,13 @@ var UserInterface = {
             UserInterface.renderedButtons = [btn_mapEditor, btn_levelSelect, btn_settings];
         })
 
-        btn_restart = new Button(50, 200, 80, 60, "restart", function() { 
+        btn_restart = new Button(50, 200, 80, 60, "restart", 0, function() { 
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
             player.restart();
         })
 
-        btn_jump = new Button(50, 300, 80, 60, "jump", function() { 
+        btn_jump = new Button(50, 300, 80, 60, "jump", 0, function() { 
             if (UserInterface.levelState == 1) {
                 UserInterface.timerStart = Date.now();
                 UserInterface.levelState = 2;
@@ -302,6 +377,15 @@ var UserInterface = {
     },
 
     update : function() {
+        
+        if (this.gamestate == 3) { // in setting page -- only place with sliders that need to be updated
+            this.renderedButtons.forEach(button => { // LOOP RENDERED BUTTONS
+                if (button.constructor.name == "SliderUI") { // run .update() for only Sliders
+                    button.update();
+                }
+            });
+        }
+
         if (this.levelState == 2) {
             this.timer = Date.now() - this.timerStart;
         }
@@ -352,7 +436,7 @@ var UserInterface = {
 
         if (this.gamestate == 6) { // In Level
 
-            if (this.debugText) { // DRAWING DEBUG TEXT
+            if (this.debugText == 1) { // DRAWING DEBUG TEXT
                 var textX = canvasArea.canvas.width * 0.18; 
                 canvasArea.ctx.font = "15px sans-serif";
                 canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
@@ -369,18 +453,18 @@ var UserInterface = {
                 canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
-                canvasArea.ctx.fillText("dragAmount Adjusted: " + touchHandler.dragAmount * sensitivity / dt, textX, 300);
+                canvasArea.ctx.fillText("dragAmount Adjusted: " + touchHandler.dragAmount * UserInterface.sensitivity / dt, textX, 300);
                 canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
-                canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmount * sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
+                canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmount * UserInterface.sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
             }
     
     
-            if (this.strafeHUD) { // STRAFE OPTIMIZER HUD
+            if (this.strafeHUD == 1) { // STRAFE OPTIMIZER HUD
                 var strafeThreshold = 0.9 ** (0.08 * player.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
                 // var strafeThreshold = 5;
                 
-                if (Math.abs(touchHandler.dragAmount) * sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
-                    if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * sensitivity < strafeThreshold * dt * 0.4) {
+                if (Math.abs(touchHandler.dragAmount) * UserInterface.sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
+                    if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * UserInterface.sensitivity < strafeThreshold * dt * 0.4) {
                         canvasArea.ctx.fillStyle = "#00FF00"; // GREEN
                     } else {
                         canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
@@ -389,7 +473,7 @@ var UserInterface = {
                     canvasArea.ctx.fillStyle = "#FF0000"; // RED
                 }
     
-                canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * sensitivity); // YOUR STRAFE
+                canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * UserInterface.sensitivity); // YOUR STRAFE
                 canvasArea.ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
                 canvasArea.ctx.fillRect(midX +16, midY + 28, 8, 50 * player.gain); // GAIN
             }
@@ -449,20 +533,29 @@ var AudioHandler = {
 
 
 class Button {
-    constructor(x, y, width, height, image, func) {
+    constructor(x, y, width, height, image, togglable, func) {
         this.x = x;
         this.y = y;
+
         this.width = width;
         this.height = height;
         this.image = image
+        this.togglable = togglable;
         this.func = func;
+
+        this.toggle = 0
+        if (this.togglable == 1) {this.func(true)} // runs the pressed function with the "init" tag to sync button pressed or released
     }
 
     render() {
+        canvasArea.ctx.fillStyle = "#FFFFFF";
+
+        if (this.togglable == 1) {
+            if (this.toggle == 1) {canvasArea.ctx.fillStyle = "#a3a3a3";}
+        }
 
         canvasArea.ctx.strokeStyle = "#BBBBBB";
         canvasArea.ctx.lineWidth = 6;
-        canvasArea.ctx.fillStyle = "#FFFFFF";
         canvasArea.ctx.beginPath();
 
         canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
@@ -1068,7 +1161,7 @@ class Player {
         if (this.speed > 100 && this.speed < 102) {console.log(UserInterface.timer/1000)}
         
         if (UserInterface.levelState == 1 || UserInterface.levelState == 2) {
-            this.angle += touchHandler.dragAmount * sensitivity;
+            this.angle += touchHandler.dragAmount * UserInterface.sensitivity;
         }
 
         if (UserInterface.levelState == 2) {
@@ -1140,12 +1233,12 @@ class Player {
         // var strafeThreshold = 5;
 
 
-        if (Math.abs(drag) * sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) {
-            // console.log(Math.abs(drag) * sensitivity * airAcceleration)
-            return Math.abs(drag) * sensitivity * airAcceleration;
+        if (Math.abs(drag) * UserInterface.sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) {
+            // console.log(Math.abs(drag) * UserInterface.sensitivity * airAcceleration)
+            return Math.abs(drag) * UserInterface.sensitivity * airAcceleration;
         } else {
             console.log("overstrafe!")
-            return -Math.abs(drag) * sensitivity * airAcceleration;
+            return -Math.abs(drag) * UserInterface.sensitivity * airAcceleration;
         }
     }
 
