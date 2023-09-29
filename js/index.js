@@ -4,20 +4,20 @@ let airAcceleration = 0.1;
 let gravity = 0.05;
 let prevDateNow;
 let dt = 1;
-let fpsNerf = 1.5 // higher = more nerf
+let fpsNerf = 1.4 // higher = more nerf
 
 var midX = 0;
 var midY = 0;
 
 function onDeviceReady() { // Called on page load in HMTL
-    // document.querySelector("body").onresize = function() {canvasArea.resize()};
+    document.querySelector("body").onresize = function() {canvasArea.resize()};
 
     window.addEventListener("orientationchange", e => {
         canvasArea.resize()
     })
     // console.log(screen.orientation)
     if (screen.orientation){
-        screen.orientation.addEventListener("change", (event) => {
+        screen.orientation.addEventListener("change", event => {
             canvasArea.resize();
         });
     }
@@ -69,6 +69,9 @@ var canvasArea = { //Canvas Object
         // console.log("canvas width: " + this.canvas.width)
         // console.log("canvas height: " + this.canvas.height)
 
+        UserInterface.renderedButtons.forEach(button => {
+            button.resize();
+        });
     },
 
      
@@ -182,6 +185,8 @@ class SliderUI {
             }
         }
     }
+
+    resize() {}
 }
 
 
@@ -235,30 +240,36 @@ var UserInterface = {
 
 
 
-
         // CREATING THE BUTTONS []  []  [] 
 
         // Main Menu
-        btn_levelSelect = new Button(midX - 100, midY - 50, 200, 100, "Play", 0, function() { 
+        btn_levelSelect = new Button("midX - 100", "midY - 50", 200, 100, "Play", 0, function() { 
             UserInterface.gamestate = 2;
             UserInterface.renderedButtons = [btn_mainMenu, btn_level_original, btn_level_noob, btn_level_hellscape]
+            UserInterface.renderedButtons.forEach(button => {
+                button.resize();
+            });
         })
 
-        btn_settings = new Button(midX + 130, midY - 50, 200, 100, "Settings", 0, function() {
+        btn_settings = new Button("midX + 130", "midY - 50", 200, 100, "Settings", 0, function() {
             UserInterface.gamestate = 3;
             UserInterface.renderedButtons = [btn_mainMenu, btn_sensitivitySlider, btn_volumeSlider, btn_debugText, btn_strafeHUD, btn_reset_settings] // debugText and strafeHud shouldnt be this accessible
-
+            UserInterface.renderedButtons.forEach(button => {
+                button.resize();
+            });
         })
 
-        btn_mapEditor = new Button(midX - 330, midY - 50, 200, 100, "Map Editor", 0, function() {
+        btn_mapEditor = new Button("midX - 330", "midY - 50", 200, 100, "Map Editor", 0, function() {
             UserInterface.gamestate = 3;
             UserInterface.renderedButtons = [btn_mainMenu]
-
+            UserInterface.renderedButtons.forEach(button => {
+                button.resize();
+            });
         })
 
 
         // Settings Buttons 
-        btn_reset_settings = new Button(canvasArea.canvas.width - 150, canvasArea.canvas.height - 150, 80, 80, "Reset", 0, function() {
+        btn_reset_settings = new Button("canvasArea.canvas.width - 150", "canvasArea.canvas.height - 150", 80, 80, "Reset", 0, function() {
             window.localStorage.removeItem("record_original")
             window.localStorage.removeItem("record_noob")
             window.localStorage.removeItem("record_hellscape")
@@ -326,12 +337,12 @@ var UserInterface = {
 
 
 
-
         // Map Buttons
         btn_level_original = new Button(200, 100, 100, 80, "Original", 0, function() { 
             map = new Map("original");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
+            btn_mainMenu.resize()
 
         })
 
@@ -339,12 +350,14 @@ var UserInterface = {
             map = new Map("noob");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
+            btn_mainMenu.resize()
         })
 
         btn_level_hellscape = new Button(440, 100, 100, 80, "Hellscape", 0, function() { 
             map = new Map("hellscape");
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
+            btn_mainMenu.resize()
         })
 
 
@@ -356,6 +369,9 @@ var UserInterface = {
             player = null;
             map = null;
             UserInterface.renderedButtons = [btn_mapEditor, btn_levelSelect, btn_settings];
+            UserInterface.renderedButtons.forEach(button => {
+                button.resize();
+            });
         })
 
         btn_restart = new Button(50, 200, 80, 60, "restart", 0, function() { 
@@ -394,6 +410,9 @@ var UserInterface = {
     mapLoaded : function() { // called by map.start()
         UserInterface.gamestate = 6;
         UserInterface.renderedButtons = [btn_mainMenu, btn_restart, btn_jump];
+        UserInterface.renderedButtons.forEach(button => {
+            button.resize();
+        });
     },
 
     handleRecord : function() {
@@ -534,8 +553,10 @@ var AudioHandler = {
 
 class Button {
     constructor(x, y, width, height, image, togglable, func) {
-        this.x = x;
-        this.y = y;
+        this.x = eval(x);
+        this.y = eval(y);
+        this.savedX = x;
+        this.savedY = y;
 
         this.width = width;
         this.height = height;
@@ -577,6 +598,13 @@ class Button {
 
     pressed() {
         this.func();
+    }
+
+    resize() {
+        this.x = eval(this.savedX)
+        this.y = eval(this.savedY)
+        console.log("evalled: " + this.savedX)
+        console.log("button position re-evaluated")
     }
 }
 
@@ -774,7 +802,7 @@ class Map {
         });
     }
 
-    update() { // Figure out which platforms are in view. This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if(){} i guess...
+    update() { // Figure out which platforms are in view. This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
 
         this.renderedPlatforms = [];
 
@@ -843,6 +871,9 @@ class Map {
 
 
         this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS (DRAW ACTUAL PLATFORMS)
+            ctx.strokeStyle = "#000000" // KILLKILLKILL MAYBE if u dont want borders
+            ctx.lineJoin = "round"
+            ctx.lineWidth = 2
 
             // DRAW PLATFORM TOP
             ctx.save(); // ROTATING 
@@ -859,6 +890,12 @@ class Map {
             
             ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
 
+
+            ctx.beginPath(); // line border on top
+            ctx.rect(-platform.width/2, -platform.height/2, platform.width, platform.height)
+            ctx.closePath();
+            ctx.stroke();
+
             ctx.restore();
 
 
@@ -868,6 +905,7 @@ class Map {
 
             var angleRad = platform.angle * (Math.PI/180);
             
+
             // platform angles should only be max of 90 and -90 in mapData
             // calculating shading works with any angle but sides arent draw because drawing "if statements" are hardcoded to 90 degrees
 
@@ -882,6 +920,7 @@ class Map {
                 ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
                 ctx.closePath();
                 ctx.fill();
+                ctx.stroke();
             }
 
 
@@ -895,6 +934,8 @@ class Map {
                 ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
                 ctx.closePath();
                 ctx.fill();
+                ctx.stroke();
+
             }
 
             if (-90 <= platform.angle && platform.angle < 0) { // side1
@@ -907,6 +948,8 @@ class Map {
                 ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
                 ctx.closePath();
                 ctx.fill();
+                ctx.stroke();
+
             }
 
             // PLAFORM RENDERING DEBUG TEXT
@@ -1051,6 +1094,10 @@ class Player {
         
         const ctx = canvasArea.ctx;
         
+        ctx.strokeStyle = "#000000" // KILLKILLKILL MAYBE if u dont want borders
+        ctx.lineJoin = "round"
+        ctx.lineWidth = 1
+
         ctx.save(); // Saves the state of the canvas
         
         ctx.translate(midX, midY);
@@ -1079,6 +1126,9 @@ class Player {
         ctx.rotate(this.angle * Math.PI/180); // rotating canvas
         ctx.fillStyle = map.style.playerColor;
         ctx.fillRect(-16,-16,32,32)
+        ctx.beginPath();
+        ctx.rect(-16,-16,32,32)
+        ctx.stroke();
         // ctx.drawImage(document.getElementById("playerTop"), -16, -16);
 
         ctx.restore();
@@ -1105,6 +1155,7 @@ class Player {
             ctx.lineTo(midX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), midY - this.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
+            ctx.stroke();
         }
 
         if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
@@ -1119,6 +1170,7 @@ class Player {
             ctx.lineTo(midX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - this.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
+            ctx.stroke();
         }
 
         if (90 < loopedAngle || loopedAngle < -90) { // TOP WALL
@@ -1133,6 +1185,7 @@ class Player {
             ctx.lineTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - 32 - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
+            ctx.stroke();
         }
 
         if (-180 < loopedAngle && loopedAngle < 0) { // LEFT WALL
@@ -1147,6 +1200,7 @@ class Player {
             ctx.lineTo(midX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), midY - this.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
             ctx.closePath();
             ctx.fill();
+            ctx.stroke();
         }
 
         ctx.restore();
