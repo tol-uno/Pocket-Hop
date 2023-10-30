@@ -1,9 +1,31 @@
 {
     "playerStart": {
-        "x": 120,
-        "y": 1200,
+        "x": 220,
+        "y": 2200,
         "angle": -100
     },
+
+    "checkpoints": [
+        {
+            "triggerX1": 200,
+            "triggerY1": 1700,
+            "triggerX2": 800,
+            "triggerY2": 1720,
+            "x": 550,
+            "y": 1790,
+            "angle": 212
+        },
+
+        {
+            "triggerX1": 400,
+            "triggerY1": 800,
+            "triggerX2": 600,
+            "triggerY2": 950,
+            "x": 530,
+            "y": 795,
+            "angle": 270
+        }
+    ],
 
     "style":{
         "platformTopColor": "rgba(209,70,63,1)",
@@ -81,12 +103,51 @@
         },
 
         {
-            "x": 116,
+            "x": 100,
             "y": 1126,
             "width": 400,
             "height": 208,
             "angle":10
-        }
+        },
 
+        {
+            "x": 415,
+            "y": 1400,
+            "width": 180,
+            "height": 140,
+            "angle": 20
+        },
+        
+        {
+            "x": 198,
+            "y": 1500,
+            "width": 180,
+            "height": 140,
+            "angle": -60
+        },
+
+        {
+            "x": 298,
+            "y": 1800,
+            "width": 280,
+            "height": 140,
+            "angle": 0
+        },
+
+        {
+            "x": 98,
+            "y": 1900,
+            "width": 180,
+            "height": 240,
+            "angle": -60
+        },
+
+        {
+            "x": 148,
+            "y": 2200,
+            "width": 180,
+            "height": 140,
+            "angle": -60
+        }
     ]
 }

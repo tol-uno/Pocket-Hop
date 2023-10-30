@@ -64,11 +64,6 @@ var canvasArea = { //Canvas Object
         midX = this.canvas.width / 2;
         midY = this.canvas.height / 2;
 
-        // console.log("window width: " + window.screen.availWidth)
-        // console.log("window height: " + window.screen.availHeight)
-        // console.log("canvas width: " + this.canvas.width)
-        // console.log("canvas height: " + this.canvas.height)
-
         UserInterface.renderedButtons.forEach(button => {
             button.resize();
         });
@@ -179,7 +174,9 @@ class SliderUI {
         } else { // if not dragging (testing for a touch end on slider)
             if (!this.confirmed) { // and if real values havent been updated
 
-                this.sliderX = Math.round(this.sliderX * 10) / 10; // snapping the position of the visual slider
+                // map snapped value to pixels along slider. snapping the position of the visual slider
+                this.sliderX = (this.value - this.min) * (this.x + this.width - this.x) / (this.max - this.min) + this.x;
+
                 this.func(); // run the functions built into the slider
                 this.confirmed = true;
             }
@@ -260,8 +257,8 @@ var UserInterface = {
         })
 
         btn_mapEditor = new Button("midX - 330", "midY - 50", 200, 100, "Map Editor", 0, function() {
-            UserInterface.gamestate = 3;
-            UserInterface.renderedButtons = [btn_mainMenu]
+            UserInterface.gamestate = 7;
+            UserInterface.renderedButtons = [btn_mainMenu, btn_load_map, btn_new_map, btn_save_map]
             UserInterface.renderedButtons.forEach(button => {
                 button.resize();
             });
@@ -336,6 +333,176 @@ var UserInterface = {
         })
 
 
+        // MAP EDITOR BUTTONS
+
+        btn_load_map = new Button("canvasArea.canvas.width - 180", "canvasArea.canvas.height - 350", 120, 80, "Load Map", 0, function() {
+            
+            var input = document.createElement("input");
+            input.type = "file";
+            document.body.appendChild(input);
+            input.click();
+            
+            input.addEventListener('change', function () {
+                let file = input.files[0]
+                
+                let reader = new FileReader();
+                reader.onload = (e) => {
+                    // console.log(e.target.result)
+                    MapEditor.loadedMap = JSON.parse(e.target.result)
+                };
+                reader.onerror = (e) => alert(e.target.error.name);
+
+                reader.readAsText(file)
+            })
+
+            input.remove();
+
+        })
+
+        btn_new_map = new Button("canvasArea.canvas.width - 180", "canvasArea.canvas.height - 250", 120, 80, "New Map", 0, function() {
+            
+            MapEditor.loadedMap =
+                {
+                    "playerStart": {
+                        "x": 335,
+                        "y": 235,
+                        "angle": 0
+                    },
+                    "checkpoints": [],
+                    "style": {
+                        "platformTopColor": "rgba(209,70,63,1)",
+                        "platformSideColor": "rgba(209,70,63,1)",
+                        "endZoneTopColor": "rgba(255,218,98,1)",
+                        "endZoneSideColor": "rgba(255,218,98,1)",
+                        "backgroundColor": "#a3d5e1",
+                        "shadowColor": "#07070a25",
+                        "playerColor": "rgba(239,238,236,1)",
+                        "platformHeight": 25,
+                        "lightAngle": 45,
+                        "shadowContrastLight": -0.005,
+                        "shadowContrastDark": -0.4,
+                        "shadowLength": 25
+                    },
+                    "platforms": [
+                        {
+                            "x": 300,
+                            "y": 10,
+                            "width": 100,
+                            "height": 100,
+                            "angle": 0,
+                            "endzone": 1
+                        },
+                        {
+                            "x": 300,
+                            "y": 200,
+                            "width": 100,
+                            "height": 100,
+                            "angle": 45,
+                            "endzone": 0
+                        }
+                    ]
+                }
+        })
+
+
+        btn_save_map = new Button("canvasArea.canvas.width - 180", "canvasArea.canvas.height - 150", 120, 80, "Download Map", 0, function() {
+            
+            var loadedMap =
+                {
+                    "playerStart": {
+                        "x": 450,
+                        "y": 150,
+                        "angle": 15
+                    },
+                    "checkpoints": [],
+                    "style": {
+                        "platformTopColor": "rgba(209,70,63,1)",
+                        "platformSideColor": "rgba(209,70,63,1)",
+                        "endZoneTopColor": "rgba(255,218,98,1)",
+                        "endZoneSideColor": "rgba(255,218,98,1)",
+                        "backgroundColor": "#a3d5e1",
+                        "shadowColor": "#07070a25",
+                        "playerColor": "rgba(239,238,236,1)",
+                        "platformHeight": 25,
+                        "lightAngle": 45,
+                        "shadowContrastLight": -0.005,
+                        "shadowContrastDark": -0.4,
+                        "shadowLength": 25
+                    },
+                    "platforms": [
+                        {
+                            "x": 200,
+                            "y": 10,
+                            "width": 100,
+                            "height": 100,
+                            "angle": 0,
+                            "endzone": 1
+                        },
+                        {
+                            "x": 400,
+                            "y": 100,
+                            "width": 100,
+                            "height": 100,
+                            "angle": 20,
+                            "endzone": 0
+                        }
+                    ]
+                }
+
+            var map = MapEditor.loadedMap;
+
+            downloadMap = {};
+            downloadMap.playerStart = {
+                    "x": map.playerStart.x,
+                    "y": map.playerStart.y,
+                    "angle": map.playerStart.angle
+                },
+            downloadMap.checkpoints = [];
+            downloadMap.style = {
+                    "platformTopColor": map.style.platformTopColor,
+                    "platformSideColor": map.style.platformSideColor,
+                    "endZoneTopColor": map.style.endZoneTopColor,
+                    "endZoneSideColor": map.style.endZoneSideColor,
+                    "backgroundColor": map.style.backgroundColor,
+                    "shadowColor": map.style.shadowColor,
+                    "playerColor": map.style.playerColor,
+                    "platformHeight": map.style.platformHeight,
+                    "lightAngle": map.style.lightAngle,
+                    "shadowContrastLight": map.style.shadowContrastLight,
+                    "shadowContrastDark": map.style.shadowContrastDark,
+                    "shadowLength": map.style.shadowLength
+                }
+            downloadMap.platforms = [];
+            map.platforms.forEach(platform => {
+                downloadMap.platforms.push(
+                    {
+                        "x": platform.x,
+                        "y": platform.y,
+                        "width": platform.width,
+                        "height": platform.height,
+                        "angle": platform.angle,
+                        "endzone": platform.endzone
+                    }
+                )
+            })
+
+
+            downloadObjectAsJson(downloadMap, "mymap");
+
+            function downloadObjectAsJson(exportObj, exportName) { // https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
+                var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", exportName + ".json");
+                document.body.appendChild(downloadAnchorNode); // required for firefox
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }
+
+            console.log("map saved")
+        })
+
+
 
         // Map Buttons
         btn_level_original = new Button(200, 100, 100, 80, "Original", 0, function() { 
@@ -343,7 +510,6 @@ var UserInterface = {
             UserInterface.gamestate = 5;
             UserInterface.renderedButtons = [btn_mainMenu];
             btn_mainMenu.resize()
-
         })
 
         btn_level_noob = new Button(320, 100, 100, 80, "Noob", 0, function() { 
@@ -377,6 +543,7 @@ var UserInterface = {
         btn_restart = new Button(50, 200, 80, 60, "restart", 0, function() { 
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
+            player.checkpointIndex = -1;
             player.restart();
         })
 
@@ -460,7 +627,7 @@ var UserInterface = {
                 canvasArea.ctx.font = "15px sans-serif";
                 canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
     
-                canvasArea.ctx.fillText("dragAmount: " + touchHandler.dragAmount, textX, 60);
+                canvasArea.ctx.fillText("dragAmountX: " + touchHandler.dragAmountX, textX, 60);
                 canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
                 canvasArea.ctx.fillText("rounded delta time: " + Math.round(dt), textX, 100);
                 canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
@@ -469,12 +636,13 @@ var UserInterface = {
                 canvasArea.ctx.fillText("renderedPlatforms Count: " + map.renderedPlatforms.length, textX, 180);
                 canvasArea.ctx.fillText("touch x: " + touchHandler.touchX, textX, 200);
                 canvasArea.ctx.fillText("touch y: " + touchHandler.touchY, textX, 220);
-                canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
+                // canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
+                canvasArea.ctx.fillText("player pos: " + Math.round(player.x) + ", " + Math.round(player.y), textX, 240);
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
-                canvasArea.ctx.fillText("dragAmount Adjusted: " + touchHandler.dragAmount * UserInterface.sensitivity / dt, textX, 300);
+                canvasArea.ctx.fillText("dragAmountX Adjusted: " + touchHandler.dragAmountX * UserInterface.sensitivity / dt, textX, 300);
                 canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
-                canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmount * UserInterface.sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
+                canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmountX * UserInterface.sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
             }
     
     
@@ -482,8 +650,8 @@ var UserInterface = {
                 var strafeThreshold = 0.9 ** (0.08 * player.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
                 // var strafeThreshold = 5;
                 
-                if (Math.abs(touchHandler.dragAmount) * UserInterface.sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
-                    if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmount) * UserInterface.sensitivity < strafeThreshold * dt * 0.4) {
+                if (Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
+                    if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity < strafeThreshold * dt * 0.4) {
                         canvasArea.ctx.fillStyle = "#00FF00"; // GREEN
                     } else {
                         canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
@@ -492,7 +660,7 @@ var UserInterface = {
                     canvasArea.ctx.fillStyle = "#FF0000"; // RED
                 }
     
-                canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmount) * UserInterface.sensitivity); // YOUR STRAFE
+                canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity); // YOUR STRAFE
                 canvasArea.ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
                 canvasArea.ctx.fillRect(midX +16, midY + 28, 8, 50 * player.gain); // GAIN
             }
@@ -532,6 +700,124 @@ var UserInterface = {
 
             }
         }
+    }
+}
+
+
+var MapEditor = {
+    editorState : 0, // 0 = map select screen, 1 = main map edit screen, 2 = platform edit menu,
+    loadedMap : null,
+    scrollX_vel : 0, // for smooth scrolling 
+    scrollY_vel : 0,
+    screenX : 0, // where the view is located
+    screenY : 0,
+    renderedPlatforms : [],
+
+    render : function() {
+
+        if (this.loadedMap !== null) { // IF MAP IS LOADED RENDER IT
+            var ctx = canvasArea.ctx;
+            ctx.save() // moving to screenx and screeny
+            ctx.translate(this.screenX, this.screenY);
+
+            // this.loadedMap.platforms.forEach(platform => {
+            this.renderedPlatforms.forEach(platform => {
+                // DRAW PLATFORM TOP
+                ctx.save(); // ROTATING for Platforms
+                ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
+                ctx.rotate(platform.angle * Math.PI/180);
+
+                // Change to endzone color if needed. Also where its determined if endzone is being rendered
+                if (platform.endzone) {
+                    ctx.fillStyle = this.loadedMap.style.endZoneTopColor;
+                    this.loadedMap.endZoneIsRendered = true;
+                } else {
+                    ctx.fillStyle = this.loadedMap.style.platformTopColor;
+                }
+                
+                ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
+                
+                // PLAFORM RENDERING DEBUG TEXT
+                // ctx.fillStyle = "#FFFFFF";
+                // ctx.fillText("angle: " + platform.angle, 0,-20);
+                // ctx.fillText("position: " + platform.x + ", " + platform.y, 0, 0);
+                // ctx.fillText("screen Loc X mid: " + (platform.x + platform.width/2 + this.screenX), 0, 20);
+                // ctx.fillText("screen Loc Y: " + (platform.y + platform.height/2 + this.screenY), 0, 40);
+
+
+                ctx.restore(); // restoring platform rotation and translation
+            })
+
+            ctx.fillRect(-5, -5, 10, 10) // (0,0) origin
+
+            // DRAWING THE PLAYER START
+            ctx.save()
+            ctx.translate(this.loadedMap.playerStart.x + 16, this.loadedMap.playerStart.y + 16)
+            ctx.rotate(this.loadedMap.playerStart.angle * Math.PI/180);
+            ctx.fillStyle = this.loadedMap.style.playerColor;
+            ctx.fillRect(-16,-16,32,32)
+            ctx.restore() //restoring player rotation and transformation
+
+            ctx.restore() // restoring screenx and screeny translation
+
+            var textX = 150;
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText("screenX: " + this.screenX, textX, 60);
+            ctx.fillText("touchX: " + Math.round(touchHandler.touchX - this.screenX), textX, 80);
+            ctx.fillText("touchY: " + Math.round(touchHandler.touchY - this.screenY), textX, 100);
+            ctx.fillText("previousX: " + touchHandler.previousX, textX, 120);
+            ctx.fillText("rendered platforms: " + this.renderedPlatforms.length, textX, 140);
+            ctx.fillText("screen X end: " + (this.screenX + canvasArea.canvas.width), textX, 160);
+
+        }
+
+
+
+    },
+
+    update : function() {
+        
+        if (this.editorState == 0) {
+            if (this.loadedMap !== null) {this.editorState = 1}    
+        }
+
+        if (this.editorState == 1 || this.editorState == 2) { // main map edit screen OR platform select screen
+
+            // SCROLLING THE SCREEN
+            if (touchHandler.dragging == 1) {
+                this.scrollX_vel += touchHandler.dragAmountX
+                this.scrollY_vel += touchHandler.dragAmountY
+            }
+
+            this.screenX += this.scrollX_vel / 10;
+            this.screenY += this.scrollY_vel / 10;
+
+            this.scrollX_vel *= 0.95
+            this.scrollY_vel *= 0.95
+
+
+
+            // FIGURING OUT WHICH PLATFORMS TO RENDER
+            this.renderedPlatforms = [];
+
+            this.loadedMap.platforms.forEach(platform => { // Loop through platforms
+                var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+
+
+                if (
+                    (platform.x + platform.width/2 + hypotenuse + this.screenX > 0) && // coming into frame on left side
+                    (platform.x + platform.width/2 - hypotenuse + this.screenX < canvasArea.canvas.width) && // right side
+                    (platform.y + platform.height/2 + hypotenuse + this.screenY > 0) && // top side
+                    (platform.y + platform.height/2 - hypotenuse + this.screenY < canvasArea.canvas.height) // bottom side
+                ) {
+                    this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
+                }
+            });
+
+
+        }
+
+    
     }
 }
 
@@ -603,8 +889,8 @@ class Button {
     resize() {
         this.x = eval(this.savedX)
         this.y = eval(this.savedY)
-        console.log("evalled: " + this.savedX)
-        console.log("button position re-evaluated")
+        // console.log("evalled: " + this.savedX)
+        // console.log("button position re-evaluated")
     }
 }
 
@@ -613,6 +899,7 @@ class Map {
     platforms = [];
     mapData = [];
     renderedPlatforms = [];
+    checkpoints = [];
     endZoneIsRendered = false;
     name;
     record;
@@ -643,6 +930,12 @@ class Map {
 
         // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
         async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
+
+
+            // const map = import("/assets/maps/" + name + ".json")
+            // return map;
+
+
             // let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
             // OLD LOCAL STORAGE
             let mapURL = "assets/maps/" + name + ".json";
@@ -654,6 +947,9 @@ class Map {
             } catch (error) {
                 console.log(error);
             }
+
+
+
         }
 
 
@@ -665,13 +961,14 @@ class Map {
             var playerStart = jsonData.playerStart; // 3 temporary vars that get combined into mapData and pushed out of async function
             var platforms = [];
             var style = jsonData.style;
+            var checkpoints = jsonData.checkpoints; // returns an object
 
 
             jsonData.platforms.forEach(platform => { // LOOP THROUGH DATA AND ADD EACH PLATFORM TO AN ARRAY
                 platforms.push(platform);
             });
 
-            var mapData = [playerStart, platforms, style]; // all the data to be sent out from this async function (platforms, player start, end zone)
+            var mapData = [playerStart, platforms, style, checkpoints]; // all the data to be sent out from this async function (platforms, player start, end zone)
 
             return mapData;
         }
@@ -681,6 +978,7 @@ class Map {
             this.playerStart = mapData[0];
             this.platforms = mapData[1];
             this.style = mapData[2];
+            this.checkpoints = mapData[3];
 
 
             // Calculate lighting for each platform and the endzone
@@ -965,7 +1263,16 @@ class Map {
             // ctx.fillText("side3: " + platform.sideColor3, 0, 100);
 
             ctx.restore();
+        }); // end of looping through platforms
+
+
+        this.checkpoints.forEach(checkpoint => { // draw line to show checkpoint triggers
+            ctx.beginPath(); 
+            ctx.moveTo(checkpoint.triggerX1, checkpoint.triggerY1);
+            ctx.lineTo(checkpoint.triggerX2, checkpoint.triggerY2);
+            ctx.stroke();
         });
+
 
         ctx.restore(); // RESTORING VIEW FOLLOWING PLAYER I THINK
     }
@@ -973,24 +1280,25 @@ class Map {
 
 
 class InputHandler {
-    dragAmount = 0;
+    dragAmountX = 0;
+    dragAmountY = 0;
     previousX = 0;
+    previousY = 0;
     touchX = 0;
     touchY = 0;
     dragging = false;
-    touchIDs = []; // first elements are the oldest touches
+    pinching = false;
+    pinchAmount = 0;
     currentDragID = null;
-
-    getReferencedTouchID(touchEventsID) { // figures out which object within touchIDs[] the current event is referencing
-        return this.touchIDs.filter(function(touch) { // filter touchIDs to find touch that has ID that matches the event's ID
-            return touch.id == touchEventsID
-        })[0] // result is a filtered array but should only give one match. hense -> [0]
-    }
 
 
     constructor(){
         window.addEventListener("touchstart", e => {
 
+            if (e.touches.length === 2) {
+                this.pinching = true;
+            }
+            
             for (let i = 0; i < e.changedTouches.length; i++){ // for loop needed incase multiple touches are sent in the same frame
 
                 if (this.dragging == false) { // if this should be the new dragging touch
@@ -1000,6 +1308,7 @@ class InputHandler {
                     this.touchX = e.changedTouches[i].pageX;
                     this.touchY = e.changedTouches[i].pageY;
                     this.previousX = e.changedTouches[i].pageX;
+                    this.previousY = e.changedTouches[i].pageY;
 
                 }
             }
@@ -1017,6 +1326,14 @@ class InputHandler {
                 if (this.dragging == false) { // if main drag is released but theres another to jump to
                     this.currentDragID = e.changedTouches[i].identifier;
                 }
+
+                if (this.pinching) {
+                    // calculatePinchAmount
+                    // OKAY MAYBE KILL THE PINCH IDEA
+                }
+
+
+    
             }
 
         });
@@ -1025,6 +1342,7 @@ class InputHandler {
         window.addEventListener("touchcancel", e => { // Fixes tripple tap bugs by reseting everything
             this.currentDragID = null;
             this.dragging = false;
+            this.pinching = false;
         });
 
         window.addEventListener("touchend", e => {
@@ -1036,17 +1354,22 @@ class InputHandler {
                     if (e.touches.length == 0) {
 
                         this.currentDragID = null;
-                        this.dragAmount = 0;
+                        this.dragAmountX = 0;
+                        this.dragAmountY = 0;
                         this.touchX = 0;
                         this.touchY = 0;
                         this.previousX = 0;
+                        this.previousY = 0;
                         this.dragging = false;
+                        this.pinching = false;
+
 
                     } else {
                         this.currentDragID = e.touches[0].identifier
                         this.touchX = e.touches[0].pageX;
                         this.touchY = e.touches[0].pageY;
                         this.previousX = e.touches[0].pageX;
+                        this.previousY = e.touches[0].pageY;
                     }
                 }
 
@@ -1054,19 +1377,21 @@ class InputHandler {
             
             }
 
-            // if (e.touches.length == 0) {this.currentDragID = null;} // Not Needed?
+
 
         });
     }
 
     update() {
         if (this.dragging == true) {
-            this.dragAmount = this.touchX - this.previousX;
+            this.dragAmountX = this.touchX - this.previousX;
+            this.dragAmountY = this.touchY - this.previousY;
+            this.previousY = this.touchY;
             this.previousX = this.touchX;
         }
 
         // FOR TESTING
-        // this.dragAmount = 3 * dt;
+        // this.dragAmountX = 3 * dt;
         // console.log(2 * dt)
     }
 
@@ -1080,6 +1405,7 @@ class Player {
     endSlow = 1;
     gain = 0;
     averageGain = [];
+    checkpointIndex = -1;
 
     constructor(x, y, angle) {
         this.x = x;
@@ -1212,20 +1538,19 @@ class Player {
     }
 
     updatePos(dt) {  // NEEDS TO BE FPS INDEPENDENT
-        if (this.speed > 100 && this.speed < 102) {console.log(UserInterface.timer/1000)}
+        // if (this.speed > 100 && this.speed < 102) {console.log(UserInterface.timer/1000)} // for testing 
         
         if (UserInterface.levelState == 1 || UserInterface.levelState == 2) {
-            this.angle += touchHandler.dragAmount * UserInterface.sensitivity;
+            this.angle += touchHandler.dragAmountX * UserInterface.sensitivity;
         }
 
-        if (UserInterface.levelState == 2) {
-            if (this.speed >= 0) { // PREVENTS GOING BACKWARDS
-                this.speed += this.calculateGain(touchHandler.dragAmount, dt);
+        if (UserInterface.levelState == 2) { // 1 = pre-start, 2 = playing level, 3 = in endzone
+            if (this.speed >= 0) { // IF STATEMENT PREVENTS GOING BACKWARDS
+                this.speed += this.calculateGain(touchHandler.dragAmountX, dt);
                 
-               
                 // SHOWING AVERAGE GAIN OVER A CERTAIN AMOUNT OF FRAMES
                 // if (this.averageGain.length < 10) { // adds 50 inputs to averageGain
-                //     this.averageGain.push(this.calculateGain(touchHandler.dragAmount, dt)/dt)
+                //     this.averageGain.push(this.calculateGain(touchHandler.dragAmountX, dt)/dt)
                 // } else {
                 //     var gain = 0;
                 //     for (let i=0; i < this.averageGain.length; i++) {
@@ -1248,12 +1573,58 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    // btn_restart.pressed();
+                    this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
                 this.jumpVelocity -= gravity * dt;
             }
+
+            // test if colliding with checkpoint triggers
+            map.checkpoints.forEach(checkpoint => {
+                
+                var distance = pDistance(this.x, this.y, checkpoint.triggerX1, checkpoint.triggerY1, checkpoint.triggerX2, checkpoint.triggerY2)
+                // console.log("distance to " + checkpoint + ": " + distance)
+
+                if (distance <= 16) { // COLLIDING WITH CP TRIGGER
+                    this.checkpointIndex = map.checkpoints.indexOf(checkpoint) // could do this with a callback index function?
+                    // console.log(this.checkpointIndex);
+                }
+
+                // gets minumum distance to line segment from point: https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+                function pDistance(x, y, x1, y1, x2, y2) { 
+
+                    var A = x - x1;
+                    var B = y - y1;
+                    var C = x2 - x1;
+                    var D = y2 - y1;
+
+                    var dot = A * C + B * D;
+                    var len_sq = C * C + D * D;
+                    var param = -1;
+                    if (len_sq != 0) //in case of 0 length line
+                        param = dot / len_sq;
+
+                    var xx, yy;
+
+                    if (param < 0) {
+                        xx = x1;
+                        yy = y1;
+                    }
+                    else if (param > 1) {
+                        xx = x2;
+                        yy = y2;
+                    }
+                    else {
+                        xx = x1 + param * C;
+                        yy = y1 + param * D;
+                    }
+
+                    var dx = x - xx;
+                    var dy = y - yy;
+                    return Math.sqrt(dx * dx + dy * dy);
+                }
+            });
 
             if (map.endZoneIsRendered) { // CHECK IF COLLIDING WITH ENDZONE
                 if (this.checkCollision([map.endZone])) {
@@ -1502,7 +1873,20 @@ class Player {
         if (collision > 0) {return true} else {return false}
     }
 
-    restart() { // Called when player hits water
+    teleport() { // Called when player hits the water
+        if (this.checkpointIndex !== -1) {
+            this.x = map.checkpoints[this.checkpointIndex].x;
+            this.y = map.checkpoints[this.checkpointIndex].y;
+            this.angle = map.checkpoints[this.checkpointIndex].angle;
+            this.speed = 50;
+            this.jumpValue = 0;
+            this.jumpVelocity = 2;
+        } else {
+            btn_restart.pressed();
+        }
+    }
+
+    restart() { // Called when user hits restart button (not when teleported from water)
         this.x = this.restartX;
         this.y = this.restartY;
         this.angle = this.restartAngle;
@@ -1578,12 +1962,23 @@ function updateGameArea() { // CALLED EVERY FRAME
         player.updatePos(dt)
     };
 
+    if (UserInterface.gamestate == 7) {
+        // could only update if user is touching
+        MapEditor.update();
+    }
+
+
+
     // RENDERING OBJECTS
     canvasArea.clear();
 
     if (UserInterface.gamestate == 6) {
         map.render();
         player.render();
+    }
+
+    if (UserInterface.gamestate == 7) {
+        MapEditor.render();
     }
 
     UserInterface.render(dt);

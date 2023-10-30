@@ -5,6 +5,8 @@
         "angle": -100
     },
 
+    "checkpoints": [],
+
     "style":{
         "platformTopColor": "rgba(138,148,149,1)",
         "platformSideColor": "rgba(124,135,141,1)",
