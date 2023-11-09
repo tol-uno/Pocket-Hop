@@ -2,7 +2,7 @@
     "playerStart": {
         "x": 220,
         "y": 2200,
-        "angle": -100
+        "angle": 0
     },
 
     "checkpoints": [

@@ -1,6 +1,7 @@
 document.addEventListener("deviceready", onDeviceReady, false);
 
-let airAcceleration = 0.1;
+let airAcceleration = 10000;
+let maxVelocity = 100000;
 let gravity = 0.05;
 let prevDateNow;
 let dt = 1;
@@ -239,10 +240,10 @@ var UserInterface = {
 
         // CREATING THE BUTTONS []  []  [] 
 
-        // Main Menu
+        // Main Menu BUTTONS
         btn_levelSelect = new Button("midX - 100", "midY - 50", 200, 100, "Play", 0, function() { 
             UserInterface.gamestate = 2;
-            UserInterface.renderedButtons = [btn_mainMenu, btn_level_original, btn_level_noob, btn_level_hellscape]
+            UserInterface.renderedButtons = [btn_mainMenu, btn_custom_maps, btn_level_original, btn_level_noob, btn_level_hellscape]
             UserInterface.renderedButtons.forEach(button => {
                 button.resize();
             });
@@ -258,14 +259,14 @@ var UserInterface = {
 
         btn_mapEditor = new Button("midX - 330", "midY - 50", 200, 100, "Map Editor", 0, function() {
             UserInterface.gamestate = 7;
-            UserInterface.renderedButtons = [btn_mainMenu, btn_load_map, btn_new_map, btn_save_map]
+            UserInterface.renderedButtons = [btn_mainMenu, btn_new_map, btn_load_map]
             UserInterface.renderedButtons.forEach(button => {
                 button.resize();
             });
         })
 
 
-        // Settings Buttons 
+        // SETTINGS Buttons 
         btn_reset_settings = new Button("canvasArea.canvas.width - 150", "canvasArea.canvas.height - 150", 80, 80, "Reset", 0, function() {
             window.localStorage.removeItem("record_original")
             window.localStorage.removeItem("record_noob")
@@ -292,7 +293,6 @@ var UserInterface = {
             UserInterface.sensitivity = this.value
             window.localStorage.setItem("sensitivity_storage", this.value)
         })
-
 
         btn_volumeSlider = new SliderUI(180, 200, 300, 0, 1, "Volume", UserInterface.volume, function() { 
             UserInterface.volume = this.value
@@ -334,38 +334,13 @@ var UserInterface = {
 
 
         // MAP EDITOR BUTTONS
-
-        btn_load_map = new Button("canvasArea.canvas.width - 180", "canvasArea.canvas.height - 350", 120, 80, "Load Map", 0, function() {
-            
-            var input = document.createElement("input");
-            input.type = "file";
-            document.body.appendChild(input);
-            input.click();
-            
-            input.addEventListener('change', function () {
-                let file = input.files[0]
-                
-                let reader = new FileReader();
-                reader.onload = (e) => {
-                    // console.log(e.target.result)
-                    MapEditor.loadedMap = JSON.parse(e.target.result)
-                };
-                reader.onerror = (e) => alert(e.target.error.name);
-
-                reader.readAsText(file)
-            })
-
-            input.remove();
-
-        })
-
-        btn_new_map = new Button("canvasArea.canvas.width - 180", "canvasArea.canvas.height - 250", 120, 80, "New Map", 0, function() {
+        btn_new_map = new Button("200", "40", 400, 100, "Create New Map", 0, function() {
             
             MapEditor.loadedMap =
                 {
                     "playerStart": {
-                        "x": 335,
-                        "y": 235,
+                        "x": 350,
+                        "y": 250,
                         "angle": 0
                     },
                     "checkpoints": [],
@@ -404,50 +379,32 @@ var UserInterface = {
                 }
         })
 
-
-        btn_save_map = new Button("canvasArea.canvas.width - 180", "canvasArea.canvas.height - 150", 120, 80, "Download Map", 0, function() {
+        btn_load_map = new Button("200", "180", 400, 100, "Load A Map", 0, function() {
             
-            var loadedMap =
-                {
-                    "playerStart": {
-                        "x": 450,
-                        "y": 150,
-                        "angle": 15
-                    },
-                    "checkpoints": [],
-                    "style": {
-                        "platformTopColor": "rgba(209,70,63,1)",
-                        "platformSideColor": "rgba(209,70,63,1)",
-                        "endZoneTopColor": "rgba(255,218,98,1)",
-                        "endZoneSideColor": "rgba(255,218,98,1)",
-                        "backgroundColor": "#a3d5e1",
-                        "shadowColor": "#07070a25",
-                        "playerColor": "rgba(239,238,236,1)",
-                        "platformHeight": 25,
-                        "lightAngle": 45,
-                        "shadowContrastLight": -0.005,
-                        "shadowContrastDark": -0.4,
-                        "shadowLength": 25
-                    },
-                    "platforms": [
-                        {
-                            "x": 200,
-                            "y": 10,
-                            "width": 100,
-                            "height": 100,
-                            "angle": 0,
-                            "endzone": 1
-                        },
-                        {
-                            "x": 400,
-                            "y": 100,
-                            "width": 100,
-                            "height": 100,
-                            "angle": 20,
-                            "endzone": 0
-                        }
-                    ]
-                }
+            var input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            document.body.appendChild(input);
+            input.click();
+            
+            input.addEventListener('change', function () {
+                let file = input.files[0]
+                
+                let reader = new FileReader();
+                reader.onload = (e) => {
+                    // console.log(e.target.result)
+                    MapEditor.loadedMap = JSON.parse(e.target.result)
+                };
+                reader.onerror = (e) => alert(e.target.error.name);
+
+                reader.readAsText(file)
+            })
+
+            input.remove();
+
+        })
+
+        btn_exit_edit = new Button("20", "20", 150, 50, "Save and Exit", 0, function() {
 
             var map = MapEditor.loadedMap;
 
@@ -486,10 +443,14 @@ var UserInterface = {
                 )
             })
 
-
-            downloadObjectAsJson(downloadMap, "mymap");
+            var savemap = confirm("Save Map?");
+            if (savemap) {
+                // RE-ENABLE TO DOWNLOAD MAPS ON EXIT (SHOULD PROMT IF WANT TO SAVE and NAME MAP)
+                downloadObjectAsJson(downloadMap, "custom_map");
+            }
 
             function downloadObjectAsJson(exportObj, exportName) { // https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
+                var exportName = prompt("Enter Map Name");
                 var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
                 var downloadAnchorNode = document.createElement('a');
                 downloadAnchorNode.setAttribute("href", dataStr);
@@ -499,12 +460,78 @@ var UserInterface = {
                 downloadAnchorNode.remove();
             }
 
-            console.log("map saved")
+            MapEditor.loadedMap = null;
+            UserInterface.renderedButtons = [btn_mainMenu, btn_new_map, btn_load_map]
+            MapEditor.editorState = 0;
+            MapEditor.selectedPlatformIndex -1;
+        })
+        
+        btn_add_platform = new Button("canvasArea.canvas.width - 200", "100", 150, 80, "New Platform", 0, function() {
+            
+            var newPlatform = {
+                "x": Math.round(-MapEditor.screenX + canvasArea.canvas.width/2),
+                "y": Math.round(-MapEditor.screenY + canvasArea.canvas.height/2),
+                "width": 100,
+                "height": 100,
+                "angle": 0,
+                "endzone": 0
+            }
+
+
+            MapEditor.loadedMap.platforms.push(newPlatform);
+            MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.length - 1;
+            UserInterface.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform]
+                
+        })
+
+        btn_unselect = new Button("canvasArea.canvas.width - 190", "30", 60, 60, "X", 0, function() {
+            
+            MapEditor.selectedPlatformIndex = -1; // No selected platform
+            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform]
+            
+        })
+
+        btn_delete_platform = new Button("canvasArea.canvas.width - 190", "300", 150, 60, "Delete Platform", 0, function() {
+            
+            MapEditor.loadedMap.platforms.splice(MapEditor.selectedPlatformIndex, 1)
+            MapEditor.selectedPlatformIndex = -1; // No selected platform
+            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform]
+            
         })
 
 
+        // MAP SELECT Buttons
+        btn_custom_maps = new Button("canvasArea.canvas.width - 200", 50, 150, 80, "Custom Maps", 0, function() { 
+            
+            
+            var input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            document.body.appendChild(input);
+            input.click();
+            
+            input.addEventListener('change', function () {
+                let file = input.files[0]
+                
+                let reader = new FileReader();
+                reader.onload = (e) => {
+                    let mapObject = JSON.parse(e.target.result);
+                    mapObject.name = String(input.files[0].name.split(".")[0]) // for getting the name of a custom map
+                    map = new Map(mapObject);
+                    UserInterface.gamestate = 5;
+                    UserInterface.renderedButtons = [btn_mainMenu];
+                    btn_mainMenu.resize()
 
-        // Map Buttons
+                };
+                reader.onerror = (e) => alert(e.target.error.name);
+
+                reader.readAsText(file)
+            })
+
+            input.remove();
+
+        })
+
         btn_level_original = new Button(200, 100, 100, 80, "Original", 0, function() { 
             map = new Map("original");
             UserInterface.gamestate = 5;
@@ -595,6 +622,12 @@ var UserInterface = {
     },
 
     touchReleased : function(x,y) { // TRIGGERED BY InputHandler
+        
+        var clickedPlatform = false;
+        var clickedButton = false;
+        var clickedPlayer = false;
+
+        // TEST IF TOUCHING WITHIN PLATFORM EDIT PANEL ON THE RIGHT
 
         this.renderedButtons.forEach(button => {
             if (button.constructor.name == "Button") { // only run on buttons not sliders
@@ -603,9 +636,42 @@ var UserInterface = {
                     y >= button.y && y <= button.y + button.height
                 ) {
                     button.pressed();
+                    clickedButton = true;
                 }
             }
         });
+
+
+        if (clickedButton == false && this.gamestate == 7 && MapEditor.editorState != 0) { // IF IN MAP EDITOR and not in map select screen in editor
+            
+            MapEditor.renderedPlatforms.forEach(platform => {
+                if (// if x and y touch is within platform (NOT ROTATED THOUGH)
+                    x >= platform.x + MapEditor.screenX && x <= platform.x + platform.width + MapEditor.screenX &&
+                    y >= platform.y + MapEditor.screenY && y <= platform.y + platform.height + MapEditor.screenY
+                ) {
+                    MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.indexOf(platform)
+                    clickedPlatform = true;
+                    this.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform]
+                }
+            })
+            
+            if (
+                x >= MapEditor.loadedMap.playerStart.x + MapEditor.screenX - 16 && x <= MapEditor.loadedMap.playerStart.x + 16 + MapEditor.screenX &&
+                y >= MapEditor.loadedMap.playerStart.y + MapEditor.screenY - 16 && y <= MapEditor.loadedMap.playerStart.y + 16 + MapEditor.screenY
+            ) {
+                MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own var
+                clickedPlayer = true;
+            }
+
+            if (clickedPlatform == false && clickedPlayer == false) {
+                btn_unselect.pressed();
+            }
+
+        }
+
+        
+
+
     },
 
     render : function(dt) {
@@ -630,8 +696,8 @@ var UserInterface = {
                 canvasArea.ctx.fillText("dragAmountX: " + touchHandler.dragAmountX, textX, 60);
                 canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
                 canvasArea.ctx.fillText("rounded delta time: " + Math.round(dt), textX, 100);
-                canvasArea.ctx.fillText("speed: " + player.speed, textX, 120);
-                canvasArea.ctx.fillText("angle: " + player.angle, textX, 140);
+                canvasArea.ctx.fillText("speed: " + Math.round(player.velocity.magnitude()), textX, 120);
+                canvasArea.ctx.fillText("lookAngle: " + player.lookAngle.getAngle(), textX, 140);
                 canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
                 canvasArea.ctx.fillText("renderedPlatforms Count: " + map.renderedPlatforms.length, textX, 180);
                 canvasArea.ctx.fillText("touch x: " + touchHandler.touchX, textX, 200);
@@ -642,7 +708,9 @@ var UserInterface = {
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
                 canvasArea.ctx.fillText("dragAmountX Adjusted: " + touchHandler.dragAmountX * UserInterface.sensitivity / dt, textX, 300);
                 canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
-                canvasArea.ctx.fillText("drag / thresh ratio: " + ((touchHandler.dragAmountX * UserInterface.sensitivity / dt)/(0.9 ** (0.08 * player.speed - 30)))*100, textX, 340)
+                canvasArea.ctx.fillText("velocity: " + player.velocity.x + ", " + player.velocity.y, textX, 340)
+                canvasArea.ctx.fillText("wishDir (wishDir): " + player.wishDir.x + ", " + player.wishDir.y, textX, 360)
+
             }
     
     
@@ -712,6 +780,9 @@ var MapEditor = {
     screenX : 0, // where the view is located
     screenY : 0,
     renderedPlatforms : [],
+    selectedPlatformIndex : -1,
+    gizmoMidX : 0,
+    gizmoMidY : 0,
 
     render : function() {
 
@@ -720,7 +791,6 @@ var MapEditor = {
             ctx.save() // moving to screenx and screeny
             ctx.translate(this.screenX, this.screenY);
 
-            // this.loadedMap.platforms.forEach(platform => {
             this.renderedPlatforms.forEach(platform => {
                 // DRAW PLATFORM TOP
                 ctx.save(); // ROTATING for Platforms
@@ -736,7 +806,20 @@ var MapEditor = {
                 }
                 
                 ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
+
+
+
+                if (platform == this.loadedMap.platforms[this.selectedPlatformIndex]) { // DRAWING THE BORDER AROUND THE SELECTED PLATFORM
+                    ctx.strokeStyle = "#000000"
+                    ctx.lineWidth = 6
+                    ctx.strokeRect(-platform.width/2 + 3, -platform.height/2 + 3, platform.width - 6, platform.height - 6);
+                    
+                    ctx.strokeStyle = "#FFFFFF"
+                    ctx.lineWidth = 2
+                    ctx.strokeRect(-platform.width/2 + 3, -platform.height/2 + 3, platform.width - 6, platform.height - 6);
+                }
                 
+
                 // PLAFORM RENDERING DEBUG TEXT
                 // ctx.fillStyle = "#FFFFFF";
                 // ctx.fillText("angle: " + platform.angle, 0,-20);
@@ -744,41 +827,121 @@ var MapEditor = {
                 // ctx.fillText("screen Loc X mid: " + (platform.x + platform.width/2 + this.screenX), 0, 20);
                 // ctx.fillText("screen Loc Y: " + (platform.y + platform.height/2 + this.screenY), 0, 40);
 
-
                 ctx.restore(); // restoring platform rotation and translation
             })
 
-            ctx.fillRect(-5, -5, 10, 10) // (0,0) origin
+
+
+            ctx.fillRect(-5, -5, 10, 10) // (0,0) map origin
 
             // DRAWING THE PLAYER START
             ctx.save()
-            ctx.translate(this.loadedMap.playerStart.x + 16, this.loadedMap.playerStart.y + 16)
+            ctx.translate(this.loadedMap.playerStart.x, this.loadedMap.playerStart.y)
             ctx.rotate(this.loadedMap.playerStart.angle * Math.PI/180);
             ctx.fillStyle = this.loadedMap.style.playerColor;
             ctx.fillRect(-16,-16,32,32)
-            ctx.restore() //restoring player rotation and transformation
 
+            // draw player arrow
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 1
+            ctx.beginPath();
+            ctx.moveTo(8, 0);
+            ctx.lineTo(-5, -7);
+            ctx.lineTo(-5, 7);
+            ctx.lineTo(8, 0)
+            ctx.stroke();
+
+            if (this.selectedPlatformIndex == -2) { // DRAWING SELECTION BORDER AROUND PLAYER
+                ctx.strokeStyle = "#000000"
+                ctx.lineWidth = 6
+                ctx.strokeRect(-13, -13, 26, 26);
+                
+                ctx.strokeStyle = "#FFFFFF"
+                ctx.lineWidth = 2
+                ctx.strokeRect(-13, -13, 26, 26);
+            }
+
+            ctx.restore() //restoring player rotation and transformation
             ctx.restore() // restoring screenx and screeny translation
 
-            var textX = 150;
+
+
+
+            // MAP EDITOR UI
+
+            if (this.editorState == 2) { // DRAWING SIDE PANEL and gizmo for PLATFORM SELECTED AND EDITING
+            
+                // SIDE PANEL
+                ctx.fillStyle = "#FFFFFF"
+                ctx.fillRect(canvasArea.canvas.width - 200, 20, 180, 260)
+
+
+
+                // GIZMO
+                if (this.selectedPlatformIndex == -2) { // player is selected
+                    
+                    ctx.fillStyle = "#000000"
+                    ctx.fillText("Player Start", canvasArea.canvas.width - 190, 120);
+                    ctx.fillText("X: " + this.loadedMap.playerStart.x, canvasArea.canvas.width - 190, 140);
+                    ctx.fillText("Y: " + this.loadedMap.playerStart.y, canvasArea.canvas.width - 190, 160);
+
+                    
+                    // this.gizmoMidY = this.loadedMap.playerStart.y + this.screenY
+                    // this.gizmoMidX = this.loadedMap.playerStart.x + this.screenX
+                
+                } else { // platform is selected
+                    
+                    ctx.fillStyle = "#000000"
+                    ctx.fillText("Platform", canvasArea.canvas.width - 190, 120);
+                    ctx.fillText("X: " + this.loadedMap.platforms[this.selectedPlatformIndex].x, canvasArea.canvas.width - 190, 140);
+                    ctx.fillText("Y: " + this.loadedMap.platforms[this.selectedPlatformIndex].y, canvasArea.canvas.width - 190, 160);
+
+                    ctx.fillText("Width: " + this.loadedMap.platforms[this.selectedPlatformIndex].width, canvasArea.canvas.width - 190, 180);
+                    ctx.fillText("Height: " + this.loadedMap.platforms[this.selectedPlatformIndex].height, canvasArea.canvas.width - 190, 200);
+
+
+                    // this.gizmoMidX = this.loadedMap.platforms[this.selectedPlatformIndex].x + this.loadedMap.platforms[this.selectedPlatformIndex].width/2 + this.screenX
+                    // this.gizmoMidY = this.loadedMap.platforms[this.selectedPlatformIndex].y + this.loadedMap.platforms[this.selectedPlatformIndex].height/2 + this.screenY
+                }
+
+                // ctx.fillRect(this.gizmoMidX, this.gizmoMidY, 10, 10)
+            
+            }
+
+
+
+            // GENERAL MAP EDITOR DEBUG TEXT
+            var textX = 200;
             ctx.fillStyle = "#FFFFFF";
             ctx.fillText("screenX: " + this.screenX, textX, 60);
             ctx.fillText("touchX: " + Math.round(touchHandler.touchX - this.screenX), textX, 80);
             ctx.fillText("touchY: " + Math.round(touchHandler.touchY - this.screenY), textX, 100);
             ctx.fillText("previousX: " + touchHandler.previousX, textX, 120);
             ctx.fillText("rendered platforms: " + this.renderedPlatforms.length, textX, 140);
-            ctx.fillText("screen X end: " + (this.screenX + canvasArea.canvas.width), textX, 160);
+            ctx.fillText("editorState: " + this.editorState, textX, 160);
+            ctx.fillText("selected platform index: " + this.selectedPlatformIndex, textX, 180);
+
 
         }
-
-
 
     },
 
     update : function() {
         
-        if (this.editorState == 0) {
-            if (this.loadedMap !== null) {this.editorState = 1}    
+        // when map is loaded for editing
+        if (this.editorState == 0) { // 0 == map select screen
+            if (this.loadedMap !== null) { // if map is loaded then switch to Main Map Edit screen
+                
+                canvasArea.canvas.style.backgroundColor = this.loadedMap.style.backgroundColor; // set bg color here so it only triggers once not every render frame
+                document.body.style.backgroundColor = this.loadedMap.style.backgroundColor;
+
+                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform] // btn_add_checkpoint, btn_map_settings
+
+                this.screenX = -this.loadedMap.playerStart.x + canvasArea.canvas.width/2;
+                this.screenY = -this.loadedMap.playerStart.y + canvasArea.canvas.height/2;
+
+                this.editorState = 1
+            }
         }
 
         if (this.editorState == 1 || this.editorState == 2) { // main map edit screen OR platform select screen
@@ -816,6 +979,15 @@ var MapEditor = {
 
 
         }
+
+        if (this.editorState == 1 && this.selectedPlatformIndex !== -1) {
+            this.editorState = 2;
+        }
+
+        if (this.editorState == 2 && this.selectedPlatformIndex == -1) {
+            this.editorState = 1;
+        }
+
 
     
     }
@@ -926,9 +1098,16 @@ class Map {
     }
 
     constructor(name) {
-        this.name = name;
+        // this.name = name;
 
-        // PARSE JSON DATA. FUNCTION USED BY parsePlatforms()
+        if (typeof name  === "string"){ // distinguishing between loading a normal map (string) OR a custom map (object)
+            this.name = name;
+        } else {
+            this.name = name.name;
+        }
+        
+
+        // PARSE JSON DATA. FUNCTION USED BY parseMapData()
         async function getJsonData() { // Taken from: https://www.javascripttutorial.net/javascript-fetch-api/
 
 
@@ -948,14 +1127,19 @@ class Map {
                 console.log(error);
             }
 
-
-
         }
 
 
         // LOOP THROUGH JSON DATA AND ADD NEW PLATFORM OBJECTS
-        async function parsePlatforms() {
-            let jsonData = await getJsonData(); // SEE ABOVE ^^
+        async function parseMapData() {
+            
+            let jsonData
+
+            if (typeof name  === "string"){ // distinguishing between loading a normal map OR a custom map
+                jsonData = await getJsonData(); // SEE ABOVE ^^
+            } else {
+                jsonData = name
+            }
 
 
             var playerStart = jsonData.playerStart; // 3 temporary vars that get combined into mapData and pushed out of async function
@@ -974,7 +1158,7 @@ class Map {
         }
 
 
-        parsePlatforms().then(mapData => { // WAITS FOR ASYNC FUNCTION. Big function that handles setting up the map and pre rendering calculations
+        parseMapData().then(mapData => { // WAITS FOR ASYNC FUNCTION. Big function that handles setting up the map and pre rendering calculations
             this.playerStart = mapData[0];
             this.platforms = mapData[1];
             this.style = mapData[2];
@@ -1293,6 +1477,8 @@ class InputHandler {
 
 
     constructor(){
+        var scrolled = false; // if scrolled==true UserInterface.touchReleased isnt sent
+
         window.addEventListener("touchstart", e => {
 
             if (e.touches.length === 2) {
@@ -1304,6 +1490,7 @@ class InputHandler {
                 if (this.dragging == false) { // if this should be the new dragging touch
                     this.currentDragID = e.changedTouches[i].identifier;
                     this.dragging = true;
+                    scrolled = false; // if scrolled==true UserInterface.touchReleased isnt sent
 
                     this.touchX = e.changedTouches[i].pageX;
                     this.touchY = e.changedTouches[i].pageY;
@@ -1321,6 +1508,7 @@ class InputHandler {
                 if (e.changedTouches[i].identifier == this.currentDragID) { // if this touch is the dragging touch
                     this.touchX = e.changedTouches[i].pageX;
                     this.touchY = e.changedTouches[i].pageY;
+                    scrolled = true; // if scrolled==true UserInterface.touchReleased isnt sent
                 }
 
                 if (this.dragging == false) { // if main drag is released but theres another to jump to
@@ -1331,7 +1519,6 @@ class InputHandler {
                     // calculatePinchAmount
                     // OKAY MAYBE KILL THE PINCH IDEA
                 }
-
 
     
             }
@@ -1373,7 +1560,9 @@ class InputHandler {
                     }
                 }
 
-                UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
+                if (scrolled == false) {
+                    UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
+                }
             
             }
 
@@ -1404,8 +1593,24 @@ class Player {
     jumpVelocity = 2;
     endSlow = 1;
     gain = 0;
-    averageGain = [];
+    // averageGain = [];
     checkpointIndex = -1;
+
+    // new movement code that uses real quake / source movement
+    // https://adrianb.io/2015/02/14/bunnyhop.html
+    // https://www.youtube.com/watch?v=v3zT3Z5apaM
+    // https://www.youtube.com/watch?v=rTsXO6Zicls
+
+    
+    wishDir = new Vector(0,0);   // left (-1,0) vector OR right (1,0) vector that is rotated by the change in angle that frame. 
+                //if angle change is postive use Right vec. Negative use left vec
+                // normalized left and right vectors act as if strafe keys were pressed 
+
+    previousVel;   // players previous velocity before any calculations
+    //air_accelerate = 10;    // air_accelerate value. Server defined 
+    //max_velocity = 500; // max_velocity_air value. server defined. Probs dont want here. 
+
+    velocity = new Vector(1,0); // will replace speed and angle vars. angle var will stay for when velocity has no magnitude
 
     constructor(x, y, angle) {
         this.x = x;
@@ -1413,6 +1618,8 @@ class Player {
         this.restartX = x;
         this.restartY = y;
         this.angle = angle;
+        // this.lookAngle = new Vector(Math.cos(angle * (Math.PI/180)), Math.sin(angle * (Math.PI/180)))
+        this.lookAngle = new Vector(1,0)
         this.restartAngle = angle;
     }
 
@@ -1437,7 +1644,8 @@ class Player {
         ctx.clip(map.upperShadowClip);
         ctx.translate(player.x , player.y);
     
-        ctx.rotate(this.angle * Math.PI/180); // rotating canvas
+        // ctx.rotate(this.angle * Math.PI/180); // rotating canvas
+        ctx.rotate(this.lookAngle.getAngle() * Math.PI/180)
 
         ctx.fillStyle = map.style.shadowColor;
         // var blurValue = player.jumpValue / 16 + 1
@@ -1449,29 +1657,79 @@ class Player {
 
         // DRAWING PLAYER TOP
         ctx.translate(0, -this.jumpValue - 32); 
-        ctx.rotate(this.angle * Math.PI/180); // rotating canvas
+        // ctx.rotate(this.angle * Math.PI/180); // rotating canvas
+        ctx.rotate(this.lookAngle.getAngle() * Math.PI/180)
         ctx.fillStyle = map.style.playerColor;
         ctx.fillRect(-16,-16,32,32)
+
+        // Draw players top arrow
+        ctx.strokeStyle = "#00000030";
+        ctx.lineWidth = 2
+
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-5, -7);
+        ctx.lineTo(-5, 7);
+        ctx.lineTo(8, 0)
+        ctx.stroke();
+
+        ctx.strokeStyle = "#000000"; // resetting
+        ctx.lineWidth = 1
+
+        
+        // draw border
         ctx.beginPath();
         ctx.rect(-16,-16,32,32)
         ctx.stroke();
+
         // ctx.drawImage(document.getElementById("playerTop"), -16, -16);
 
-        ctx.restore();
+        ctx.restore(); // leaves players space translation AND rotation AND jump value translation
+
+
+        // DRAWING PLAYER MOVEMENT DEBUG VECTORS
+        ctx.strokeStyle = "#FF00FF";
+        ctx.lineWidth = 4
+        
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX + this.wishDir.x * 100, midY + this.wishDir.y * 100);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#0000FF";
+        ctx.lineWidth = 5
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX + this.velocity.x * 10, midY + this.velocity.y * 10);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FF00FF";
+        ctx.lineWidth = 1
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX + this.lookAngle.x * 100, midY + this.lookAngle.y * 100);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#000000"; // resetting
+        ctx.lineWidth = 1
+
+
 
         // SIDES OF PLAYER
         ctx.save();
         
-        var angleRad = this.angle * (Math.PI/180);
-        var loopedAngle = this.angle - (Math.round(this.angle/360) * 360);
+
+        var angleRad = this.lookAngle.getAngle() * (Math.PI/180);
+        var loopedAngle = this.lookAngle.getAngle();
+
 
 
         // GETTING CORNERS OF ROTATED RECTANGLE
         // https://stackoverflow.com/questions/41898990/find-corners-of-a-rotated-rectangle-given-its-center-point-and-rotation
 
-        if (-90 < loopedAngle && loopedAngle < 90) { // BOT WALL
+        if (loopedAngle > 270 || loopedAngle < 90) { // BOT WALL
 
-            var sideVector = new Vector(0,1).rotate(this.angle)
+            var sideVector = new Vector(0,1).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
@@ -1486,7 +1744,7 @@ class Player {
 
         if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
 
-            var sideVector = new Vector(1,0).rotate(this.angle)
+            var sideVector = new Vector(1,0).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
@@ -1499,9 +1757,9 @@ class Player {
             ctx.stroke();
         }
 
-        if (90 < loopedAngle || loopedAngle < -90) { // TOP WALL
+        if (90 < loopedAngle && loopedAngle < 270) { // TOP WALL
             
-            var sideVector = new Vector(0,-1).rotate(this.angle)
+            var sideVector = new Vector(0,-1).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
             
             ctx.beginPath();
@@ -1514,9 +1772,9 @@ class Player {
             ctx.stroke();
         }
 
-        if (-180 < loopedAngle && loopedAngle < 0) { // LEFT WALL
+        if (180 < loopedAngle && loopedAngle < 360) { // LEFT WALL
 
-            var sideVector = new Vector(-1,0).rotate(this.angle)
+            var sideVector = new Vector(-1,0).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
@@ -1529,7 +1787,8 @@ class Player {
             ctx.stroke();
         }
 
-        ctx.restore();
+
+        ctx.restore(); 
     
     }
 
@@ -1541,12 +1800,46 @@ class Player {
         // if (this.speed > 100 && this.speed < 102) {console.log(UserInterface.timer/1000)} // for testing 
         
         if (UserInterface.levelState == 1 || UserInterface.levelState == 2) {
-            this.angle += touchHandler.dragAmountX * UserInterface.sensitivity;
+            // this.angle += touchHandler.dragAmountX * UserInterface.sensitivity;
+            this.lookAngle = this.lookAngle.rotate(touchHandler.dragAmountX * UserInterface.sensitivity) // for some reason this works. I didnt think this is how the .rotate vector method worked ??? shrug
+            
+            if (touchHandler.dragAmountX > 0) {
+                this.wishDir = this.lookAngle.rotate(90)
+                // this.wishDir.normalize(1) // probs dont need
+            }
+
+            if (touchHandler.dragAmountX < 0) {
+                this.wishDir = this.lookAngle.rotate(-90)
+                // this.wishDir.normalize(1) // probs dont need
+
+            }
+
+            if (touchHandler.dragAmountX == 0) {this.wishDir.set(0,0)}
+        
         }
 
         if (UserInterface.levelState == 2) { // 1 = pre-start, 2 = playing level, 3 = in endzone
-            if (this.speed >= 0) { // IF STATEMENT PREVENTS GOING BACKWARDS
-                this.speed += this.calculateGain(touchHandler.dragAmountX, dt);
+            if (this.speed >= 0) { // THIS IF STATEMENT PREVENTS GOING BACKWARDS
+                
+                let addSpeed;
+
+                // Does all movement calculations
+                let currentSpeedProjected = this.velocity.dotProduct(this.wishDir); // Vector projection of Current_velocity onto wishDir... hopefully
+                // console.log("currentSpeedProjected: " + currentSpeedProjected)
+                addSpeed = 1 - currentSpeedProjected; // 1 is the wishDir vectors length
+                console.log("addSpeed: " + addSpeed)
+
+                let accelVel = airAcceleration * dt; // Just adjusting airAcceleration value to be dependant on dt
+                console.log("accelVel: " + accelVel)
+
+                if (accelVel > addSpeed) { // if not exceeding AA limit ?maybe?
+                    accelVel = addSpeed;
+                }
+
+                this.velocity.x += this.wishDir.x * accelVel
+                this.velocity.y += this.wishDir.y * accelVel                
+            
+
                 
                 // SHOWING AVERAGE GAIN OVER A CERTAIN AMOUNT OF FRAMES
                 // if (this.averageGain.length < 10) { // adds 50 inputs to averageGain
@@ -1564,16 +1857,17 @@ class Player {
 
             } else {this.speed = 0}
         
-            this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt; // MOVE FORWARD AT ANGLE BASED ON SPEED
-            this.y += Math.sin(this.angle * (Math.PI / 180)) * this.speed/50 * dt;
-        
+            
+            this.x += this.velocity.x / 5 * dt;
+            this.y += this.velocity.y / 5 * dt;
+
             if (this.jumpValue < 0) { // JUMPING
                 this.jumpValue = 0;
                 this.jumpVelocity = 2;
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    this.teleport();
+                    // this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
@@ -1639,8 +1933,8 @@ class Player {
             // if (this.endSlow > 0.02) {this.endSlow = (this.endSlow * 0.95);} else {this.endSlow = 0} // THIS NEEDS TO BE FPS INDEPENDENT
             if (this.endSlow > 0.02) {this.endSlow = (this.endSlow - 0.02 * dt);} else {this.endSlow = 0}
 
-            this.x += Math.cos(this.angle * (Math.PI / 180)) * this.speed/50 * dt * this.endSlow; // MOVE FORWARD AT ANGLE BASED ON SPEED
-            this.y += Math.sin(this.angle * (Math.PI / 180)) * this.speed/50 * dt * this.endSlow;
+            this.x += this.velocity.x/5 * dt * this.endSlow; // MOVE FORWARD AT ANGLE BASED ON SPEED
+            this.y += this.velocity.y/5 * dt * this.endSlow;
         
             if (this.jumpValue < 0) { // JUMPING
                 this.jumpValue = 0;
@@ -1652,20 +1946,6 @@ class Player {
         }
     }
 
-    calculateGain(drag, dt) { // COULD MAYBE PUT THIS INSIDE OF updatePos() to avoid having to pass dt.
-        
-        var strafeThreshold = 0.9 ** (0.08 * this.speed - 30); // ALSO PRESENT IN strafe optimizer code -- change both -- maybe just add as var somwhere
-        // var strafeThreshold = 5;
-
-
-        if (Math.abs(drag) * UserInterface.sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) {
-            // console.log(Math.abs(drag) * UserInterface.sensitivity * airAcceleration)
-            return Math.abs(drag) * UserInterface.sensitivity * airAcceleration;
-        } else {
-            console.log("overstrafe!")
-            return -Math.abs(drag) * UserInterface.sensitivity * airAcceleration;
-        }
-    }
 
     checkCollision(arrayOfPlatformsToCheck) { // called every time player hits the floor ALSO used to check endzone collision
         var collision = 0;
@@ -1904,6 +2184,11 @@ class Vector {
       this.y = y;
     }
 
+    set = function(x,y) {
+        this.x = x;
+        this.y = y;
+    }
+
     add = function(otherVec) {
         this.x += otherVec.x;
         this.y += otherVec.y;
@@ -1918,7 +2203,7 @@ class Vector {
         this.y *= scalar;
     }
 
-    dotProduct = function(otherVec) { // ONLY FOR 2D Vectors
+    dotProduct = function(otherVec) { // ONLY FOR 2D Vectors. Projects Parent Vector onto otherVec
         return (this.x * otherVec.x) + (this.y * otherVec.y)
     }
 
@@ -1926,7 +2211,7 @@ class Vector {
         return Math.sqrt((this.x ** 2) + (this.y ** 2))
     }
 
-    rotate = function(ang) // angle in degrees 
+    rotate = function(ang) // angle in degrees. returns new array -- doesnt modify existing one. also doesnt incriment by angle -- it rotates the vec to be at angle
     {
         ang = ang * (Math.PI/180);
         var cos = Math.cos(ang);
@@ -1938,9 +2223,16 @@ class Vector {
         return Math.acos((this.dotProduct(otherVec)) / (this.magnitude() * otherVec.magnitude()))
     }
 
-    normalize = function(multiplier) {
+    getAngle = function() { // RETURNS ANGLE IN DEGREES. https://stackoverflow.com/questions/35271222/getting-the-angle-from-a-direction-vector
+        var angle = Math.atan2(this.y, this.x);   //radians
+        // you need to divide by PI, and MULTIPLY by 180:
+        var degrees = 180 * angle/Math.PI;  //degrees
+        return (360+Math.round(degrees))%360; //round number, avoid decimal fragments
+    }
+
+    normalize = function(multiplier) { // NOTE: requires multiplier
         if (this.length !== 0) {
-            var n = this.divide(this.length()); // dont ever want to normalize when vector length is zero
+            var n = this.divide(this.magnitude()); // dont ever want to normalize when vector length is zero
             this.x = n.x * multiplier;
             this.y = n.y * multiplier;
         }
