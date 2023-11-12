@@ -1,11 +1,10 @@
 document.addEventListener("deviceready", onDeviceReady, false);
 
-let airAcceleration = 10000;
-let maxVelocity = 100000;
+let airAcceleration = 5; // the sharpness your allowed to turn at
+let maxVelocity = 1.12; // basically the rate at which speed is gained / lost. wishDir is scaled to this magnitude
 let gravity = 0.05;
 let prevDateNow;
 let dt = 1;
-let fpsNerf = 1.4 // higher = more nerf
 
 var midX = 0;
 var midY = 0;
@@ -70,7 +69,6 @@ var canvasArea = { //Canvas Object
         });
     },
 
-     
     convexHull: function (points) {
 
         function cross(a, b, o) {
@@ -621,6 +619,19 @@ var UserInterface = {
         }
     },
 
+    secondsToMinutes : function(milliseconds) {
+        let seconds = milliseconds / 1000
+        // seconds = Math.round(seconds * 1000) / 1000
+
+        let minutes = Math.floor(seconds / 60);
+        let extraSeconds = seconds % 60;
+        extraSeconds = Math.round(extraSeconds * 1000) / 1000
+
+        // minutes = minutes < 10 ? "0" + minutes : minutes; // adds a zero before minutes number if less than 10 mins
+        extraSeconds = extraSeconds < 10 ? "0" + extraSeconds : extraSeconds;
+        return minutes + ":" + extraSeconds;
+    },
+
     touchReleased : function(x,y) { // TRIGGERED BY InputHandler
         
         var clickedPlatform = false;
@@ -695,42 +706,60 @@ var UserInterface = {
     
                 canvasArea.ctx.fillText("dragAmountX: " + touchHandler.dragAmountX, textX, 60);
                 canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
-                canvasArea.ctx.fillText("rounded delta time: " + Math.round(dt), textX, 100);
-                canvasArea.ctx.fillText("speed: " + Math.round(player.velocity.magnitude()), textX, 120);
+                canvasArea.ctx.fillText("rounded dt: " + Math.round(dt) + " milliseconds", textX, 100);
+                canvasArea.ctx.fillText("velocity: " + Math.round(player.velocity.magnitude()), textX, 120);
                 canvasArea.ctx.fillText("lookAngle: " + player.lookAngle.getAngle(), textX, 140);
-                canvasArea.ctx.fillText("timer: " + this.timer / 1000, textX, 160);
+                canvasArea.ctx.fillText("timer: " + UserInterface.secondsToMinutes(this.timer), textX, 160);
                 canvasArea.ctx.fillText("renderedPlatforms Count: " + map.renderedPlatforms.length, textX, 180);
                 canvasArea.ctx.fillText("touch x: " + touchHandler.touchX, textX, 200);
                 canvasArea.ctx.fillText("touch y: " + touchHandler.touchY, textX, 220);
-                // canvasArea.ctx.fillText("currentDragID: " + touchHandler.currentDragID, textX, 240);
                 canvasArea.ctx.fillText("player pos: " + Math.round(player.x) + ", " + Math.round(player.y), textX, 240);
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
                 canvasArea.ctx.fillText("dragAmountX Adjusted: " + touchHandler.dragAmountX * UserInterface.sensitivity / dt, textX, 300);
-                canvasArea.ctx.fillText("strafeThreshold: " + 0.9 ** (0.08 * player.speed - 30), textX, 320);
+                canvasArea.ctx.fillText("lookAngle Length: " + player.lookAngle.magnitude(), textX, 320);
                 canvasArea.ctx.fillText("velocity: " + player.velocity.x + ", " + player.velocity.y, textX, 340)
-                canvasArea.ctx.fillText("wishDir (wishDir): " + player.wishDir.x + ", " + player.wishDir.y, textX, 360)
+                canvasArea.ctx.fillText("wishDir: " + player.wishDir.x + ", " + player.wishDir.y, textX, 360)
 
             }
     
     
-            if (this.strafeHUD == 1) { // STRAFE OPTIMIZER HUD
-                var strafeThreshold = 0.9 ** (0.08 * player.speed - 30); // ALSO PRESENT IN calculateGain() -- change both
-                // var strafeThreshold = 5;
+            if (this.strafeHUD == 1) { // STRAFE OPTIMIZER HUD. FIX THIS
                 
-                if (Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity < (strafeThreshold * dt - (fpsNerf * dt**2))) { // CHANGING UI COLOR BASED OFF STRAFE QUALITY
-                    if ((strafeThreshold * dt) - Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity < strafeThreshold * dt * 0.4) {
-                        canvasArea.ctx.fillStyle = "#00FF00"; // GREEN
-                    } else {
-                        canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
-                    }
-                } else {
-                    canvasArea.ctx.fillStyle = "#FF0000"; // RED
-                }
-    
-                canvasArea.ctx.fillRect(midX-8, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity); // YOUR STRAFE
-                canvasArea.ctx.fillRect(midX +4, midY + 28, 8, 4 * strafeThreshold * dt); // THE THRESHOLD
-                canvasArea.ctx.fillRect(midX +16, midY + 28, 8, 50 * player.gain); // GAIN
+                canvasArea.ctx.fillRect(midX - 18, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity); // YOUR STRAFE
+                canvasArea.ctx.fillRect(midX - 4, midY + 28, 8, 100 * player.currentSpeedProjected); // THE THRESHOLD
+                canvasArea.ctx.fillRect(midX + 10, midY + 28, 8, 40 ); // GAIN
+
+
+                // DRAWING PLAYER MOVEMENT DEBUG VECTORS
+                // player wishDir
+                canvasArea.ctx.strokeStyle = "#FF00FF";
+                canvasArea.ctx.lineWidth = 4
+                canvasArea.ctx.beginPath();
+                canvasArea.ctx.moveTo(midX, midY);
+                canvasArea.ctx.lineTo(midX + player.wishDir.x * 100, midY + player.wishDir.y * 100);
+                canvasArea.ctx.stroke();
+
+                // player velocity
+                canvasArea.ctx.strokeStyle = "#0000FF";
+                canvasArea.ctx.lineWidth = 5
+                canvasArea.ctx.beginPath();
+                canvasArea.ctx.moveTo(midX, midY);
+                canvasArea.ctx.lineTo(midX + player.velocity.x * 10, midY + player.velocity.y * 10);
+                canvasArea.ctx.stroke();
+
+                // player lookAngle
+                canvasArea.ctx.strokeStyle = "#FF00FF";
+                canvasArea.ctx.lineWidth = 1
+                canvasArea.ctx.beginPath();
+                canvasArea.ctx.moveTo(midX, midY);
+                canvasArea.ctx.lineTo(midX + player.lookAngle.x * 100, midY + player.lookAngle.y * 100);
+                canvasArea.ctx.stroke();
+
+
+                canvasArea.ctx.strokeStyle = "#000000"; // resetting
+                canvasArea.ctx.lineWidth = 1
+
             }
 
             if (player.endSlow == 0) { // level name, your time, best time, strafe efficiency
@@ -761,8 +790,8 @@ var UserInterface = {
                 canvasArea.ctx.fillStyle = "#555555"; // GRAY
 
                 canvasArea.ctx.fillText("Level: " + map.name, midX - 120, midY - 50);
-                canvasArea.ctx.fillText("Time: " + UserInterface.timer / 1000, midX - 120, midY - 0);
-                canvasArea.ctx.fillText("Record: " + map.record / 1000, midX - 120, midY + 30);
+                canvasArea.ctx.fillText("Time: " + UserInterface.secondsToMinutes(UserInterface.timer), midX - 120, midY - 0);
+                canvasArea.ctx.fillText("Record: " + UserInterface.secondsToMinutes(map.record), midX - 120, midY + 30);
 
                 if (UserInterface.timer == map.record) {canvasArea.ctx.fillText("New Record!", midX - 120, midY + 65)}
 
@@ -1316,7 +1345,7 @@ class Map {
         // DRAWING LOWER PLAYER SHADOW
         ctx.save(); // Saves the state of the canvas for drawing player shadow. Weird to draw it here but whatever. Could also put this above the first translate ^^
         ctx.translate(player.x , player.y + this.style.platformHeight)
-        ctx.rotate(player.angle * Math.PI/180); // rotating canvas
+        ctx.rotate(player.lookAngle.getAngle() * Math.PI/180); // rotating canvas
 
         ctx.fillStyle = this.style.shadowColor;
         // ctx.fillStyle = "green";
@@ -1560,9 +1589,9 @@ class InputHandler {
                     }
                 }
 
-                if (scrolled == false) {
+                // if (scrolled == false) {
                     UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
-                }
+                // }
             
             }
 
@@ -1580,7 +1609,7 @@ class InputHandler {
         }
 
         // FOR TESTING
-        // this.dragAmountX = 3 * dt;
+        // this.dragAmountX = 2 * dt;
         // console.log(2 * dt)
     }
 
@@ -1588,38 +1617,32 @@ class InputHandler {
 
 
 class Player {
-    speed = 0;
     jumpValue = 0;
     jumpVelocity = 2;
     endSlow = 1;
     gain = 0;
-    // averageGain = [];
     checkpointIndex = -1;
+    currentSpeedProjected = 0;
 
     // new movement code that uses real quake / source movement
     // https://adrianb.io/2015/02/14/bunnyhop.html
     // https://www.youtube.com/watch?v=v3zT3Z5apaM
     // https://www.youtube.com/watch?v=rTsXO6Zicls
+    // https://www.youtube.com/watch?v=rTsXO6Zicls
 
-    
     wishDir = new Vector(0,0);   // left (-1,0) vector OR right (1,0) vector that is rotated by the change in angle that frame. 
-                //if angle change is postive use Right vec. Negative use left vec
-                // normalized left and right vectors act as if strafe keys were pressed 
+                                //if angle change is postive use Right vec. Negative use left vec
+                                // normalized left and right vectors act as if strafe keys were pressed 
 
-    previousVel;   // players previous velocity before any calculations
-    //air_accelerate = 10;    // air_accelerate value. Server defined 
-    //max_velocity = 500; // max_velocity_air value. server defined. Probs dont want here. 
-
-    velocity = new Vector(1,0); // will replace speed and angle vars. angle var will stay for when velocity has no magnitude
+    velocity = new Vector(0,0);
 
     constructor(x, y, angle) {
         this.x = x;
         this.y = y;
         this.restartX = x;
         this.restartY = y;
-        this.angle = angle;
-        // this.lookAngle = new Vector(Math.cos(angle * (Math.PI/180)), Math.sin(angle * (Math.PI/180)))
         this.lookAngle = new Vector(1,0)
+        this.lookAngle = this.lookAngle.rotate(angle)
         this.restartAngle = angle;
     }
 
@@ -1627,7 +1650,7 @@ class Player {
         
         const ctx = canvasArea.ctx;
         
-        ctx.strokeStyle = "#000000" // KILLKILLKILL MAYBE if u dont want borders
+        ctx.strokeStyle = "#000000" // borders
         ctx.lineJoin = "round"
         ctx.lineWidth = 1
 
@@ -1685,34 +1708,6 @@ class Player {
         // ctx.drawImage(document.getElementById("playerTop"), -16, -16);
 
         ctx.restore(); // leaves players space translation AND rotation AND jump value translation
-
-
-        // DRAWING PLAYER MOVEMENT DEBUG VECTORS
-        ctx.strokeStyle = "#FF00FF";
-        ctx.lineWidth = 4
-        
-        ctx.beginPath();
-        ctx.moveTo(midX, midY);
-        ctx.lineTo(midX + this.wishDir.x * 100, midY + this.wishDir.y * 100);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#0000FF";
-        ctx.lineWidth = 5
-        ctx.beginPath();
-        ctx.moveTo(midX, midY);
-        ctx.lineTo(midX + this.velocity.x * 10, midY + this.velocity.y * 10);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#FF00FF";
-        ctx.lineWidth = 1
-        ctx.beginPath();
-        ctx.moveTo(midX, midY);
-        ctx.lineTo(midX + this.lookAngle.x * 100, midY + this.lookAngle.y * 100);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#000000"; // resetting
-        ctx.lineWidth = 1
-
 
 
         // SIDES OF PLAYER
@@ -1793,25 +1788,24 @@ class Player {
     }
 
     startLevel() {
-        this.speed = 85;
+        this.velocity.set(6,0);
+        this.velocity = this.velocity.rotate(this.lookAngle.getAngle());
     }
 
     updatePos(dt) {  // NEEDS TO BE FPS INDEPENDENT
-        // if (this.speed > 100 && this.speed < 102) {console.log(UserInterface.timer/1000)} // for testing 
         
         if (UserInterface.levelState == 1 || UserInterface.levelState == 2) {
             // this.angle += touchHandler.dragAmountX * UserInterface.sensitivity;
-            this.lookAngle = this.lookAngle.rotate(touchHandler.dragAmountX * UserInterface.sensitivity) // for some reason this works. I didnt think this is how the .rotate vector method worked ??? shrug
+            this.lookAngle = this.lookAngle.rotate(touchHandler.dragAmountX * UserInterface.sensitivity)
             
             if (touchHandler.dragAmountX > 0) {
-                this.wishDir = this.lookAngle.rotate(90)
-                // this.wishDir.normalize(1) // probs dont need
+                this.wishDir = this.lookAngle.rotate(90) // look angle is already a normalized
+                this.wishDir.normalize(maxVelocity) // changes the length to be maxVelocity
             }
 
             if (touchHandler.dragAmountX < 0) {
-                this.wishDir = this.lookAngle.rotate(-90)
-                // this.wishDir.normalize(1) // probs dont need
-
+                this.wishDir = this.lookAngle.rotate(-90) // look angle is already a normalized
+                this.wishDir.normalize(maxVelocity) // changes the length to be maxVelocity
             }
 
             if (touchHandler.dragAmountX == 0) {this.wishDir.set(0,0)}
@@ -1819,55 +1813,49 @@ class Player {
         }
 
         if (UserInterface.levelState == 2) { // 1 = pre-start, 2 = playing level, 3 = in endzone
-            if (this.speed >= 0) { // THIS IF STATEMENT PREVENTS GOING BACKWARDS
-                
-                let addSpeed;
 
-                // Does all movement calculations
-                let currentSpeedProjected = this.velocity.dotProduct(this.wishDir); // Vector projection of Current_velocity onto wishDir... hopefully
-                // console.log("currentSpeedProjected: " + currentSpeedProjected)
-                addSpeed = 1 - currentSpeedProjected; // 1 is the wishDir vectors length
-                console.log("addSpeed: " + addSpeed)
-
-                let accelVel = airAcceleration * dt; // Just adjusting airAcceleration value to be dependant on dt
-                console.log("accelVel: " + accelVel)
-
-                if (accelVel > addSpeed) { // if not exceeding AA limit ?maybe?
-                    accelVel = addSpeed;
-                }
-
-                this.velocity.x += this.wishDir.x * accelVel
-                this.velocity.y += this.wishDir.y * accelVel                
+            // ALL MOVEMENT CALCULATIONS
+            this.currentSpeedProjected = this.velocity.dotProduct(this.wishDir); // Vector projection of Current_velocity onto wishDir... hopefully
             
 
-                
-                // SHOWING AVERAGE GAIN OVER A CERTAIN AMOUNT OF FRAMES
-                // if (this.averageGain.length < 10) { // adds 50 inputs to averageGain
-                //     this.averageGain.push(this.calculateGain(touchHandler.dragAmountX, dt)/dt)
-                // } else {
-                //     var gain = 0;
-                //     for (let i=0; i < this.averageGain.length; i++) {
-                //         gain += this.averageGain[i]
-                //     }
-                //     gain = gain/this.averageGain.length;
-                //     // console.log(gain*100);
-                //     this.averageGain = [];
-                // }
-
-
-            } else {this.speed = 0}
+            // THIS IS VIDEO VERSION OF QUAKE1 CODE	
+            // addSpeed is clipped between 0 -> MAX_ACCEL * dt  --- addSpeed should only be 0 when wishDir is 0
+            let addSpeed = maxVelocity - this.currentSpeedProjected; // sometimes currentSpeedProj is negative
+            addSpeed *= Math.cbrt(dt); // this is a hack to make gain consistent between fps changes BAD BAD BAD
+            if (addSpeed > airAcceleration * dt) {addSpeed = airAcceleration * dt; console.log("maxspeed clipped by AA")} // addspeed is to big and needs to be limited by airacceleration value
+            if (addSpeed <= 0) {addSpeed = 0; console.log("zero addspeed")} // currentSpeedProjected is greater than max_speed. dont add speed
+            
+            
+            // little strafe optimizer debug thing
+            console.log("currentSpeedProjected: " + this.currentSpeedProjected)
+            console.log("addSpeed: " + addSpeed)
+            console.log("dt: " + dt)
+            console.log("AA limit on addSpeed: " + airAcceleration * dt)
+            console.log(" ")
+            console.log(" ")
+            
         
-            
+            // addSpeed is a scaler for wishdir. if addspeed == 0 no wishdir is applied
+            this.velocity.x += (this.wishDir.x * addSpeed)
+            this.velocity.y += (this.wishDir.y * addSpeed)
+            // addSpeed needs to be adjusted by dt. Bigger dt, less fps, bigger addSpeed
+
+
+            // APPLYING VELOCITY
             this.x += this.velocity.x / 5 * dt;
             this.y += this.velocity.y / 5 * dt;
 
-            if (this.jumpValue < 0) { // JUMPING
+
+
+            
+            // JUMPING
+            if (this.jumpValue < 0) { 
                 this.jumpValue = 0;
                 this.jumpVelocity = 2;
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    // this.teleport();
+                    this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
@@ -1933,7 +1921,7 @@ class Player {
             // if (this.endSlow > 0.02) {this.endSlow = (this.endSlow * 0.95);} else {this.endSlow = 0} // THIS NEEDS TO BE FPS INDEPENDENT
             if (this.endSlow > 0.02) {this.endSlow = (this.endSlow - 0.02 * dt);} else {this.endSlow = 0}
 
-            this.x += this.velocity.x/5 * dt * this.endSlow; // MOVE FORWARD AT ANGLE BASED ON SPEED
+            this.x += this.velocity.x/5 * dt * this.endSlow; // MOVE FORWARD AT ANGLE BASED ON VELOCITY
             this.y += this.velocity.y/5 * dt * this.endSlow;
         
             if (this.jumpValue < 0) { // JUMPING
@@ -1962,7 +1950,7 @@ class Player {
             }
 
             let rectangleStore = [
-                new Rectangle(player.x-16, player.y-16, 32, 32, player.angle),
+                new Rectangle(player.x-16, player.y-16, 32, 32, player.lookAngle.getAngle()),
                 new Rectangle(platform.x, platform.y, platform.width, platform.height, platform.angle)
             ]
 
@@ -2157,8 +2145,10 @@ class Player {
         if (this.checkpointIndex !== -1) {
             this.x = map.checkpoints[this.checkpointIndex].x;
             this.y = map.checkpoints[this.checkpointIndex].y;
-            this.angle = map.checkpoints[this.checkpointIndex].angle;
-            this.speed = 50;
+            this.lookAngle.set(1,0)
+            this.lookAngle = this.lookAngle.rotate(map.checkpoints[this.checkpointIndex].angle)
+            this.velocity.set(2,0)
+            this.velocity = this.velocity.rotate(this.lookAngle.getAngle())
             this.jumpValue = 0;
             this.jumpVelocity = 2;
         } else {
@@ -2169,8 +2159,9 @@ class Player {
     restart() { // Called when user hits restart button (not when teleported from water)
         this.x = this.restartX;
         this.y = this.restartY;
-        this.angle = this.restartAngle;
-        this.speed = 0;
+        this.lookAngle.set(1,0)
+        this.lookAngle = this.lookAngle.rotate(this.restartAngle)
+        this.velocity.set(0,0)
         this.jumpValue = 0;
         this.jumpVelocity = 2;
         this.endSlow = 1;
@@ -2187,6 +2178,7 @@ class Vector {
     set = function(x,y) {
         this.x = x;
         this.y = y;
+        // should add angle
     }
 
     add = function(otherVec) {
@@ -2211,7 +2203,7 @@ class Vector {
         return Math.sqrt((this.x ** 2) + (this.y ** 2))
     }
 
-    rotate = function(ang) // angle in degrees. returns new array -- doesnt modify existing one. also doesnt incriment by angle -- it rotates the vec to be at angle
+    rotate = function(ang) // angle in degrees. returns new array -- doesnt modify existing one. It seems to incriment by the angle
     {
         ang = ang * (Math.PI/180);
         var cos = Math.cos(ang);
