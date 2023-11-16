@@ -102,6 +102,7 @@ var canvasArea = { //Canvas Object
 }
 
 
+
 class SliderUI {
     confirmed = true;
 
@@ -184,7 +185,6 @@ class SliderUI {
 
     resize() {}
 }
-
 
 var UserInterface = {
     
@@ -486,8 +486,18 @@ var UserInterface = {
             
             MapEditor.selectedPlatformIndex = -1; // No selected platform
             UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform]
-            
         })
+
+        btn_x_plus = new Button("canvasArea.canvas.width - 55", "120", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].x += 20 })
+        btn_x_minus = new Button("canvasArea.canvas.width - 90", "120", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].x -= 20 })
+        btn_y_plus = new Button("canvasArea.canvas.width - 55", "140", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].y += 20 })
+        btn_y_minus = new Button("canvasArea.canvas.width - 90", "140", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].y -= 20 })
+        btn_width_plus = new Button("canvasArea.canvas.width - 55", "160", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].width += 20 })
+        btn_width_minus = new Button("canvasArea.canvas.width - 90", "160", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].width -= 20 })
+        btn_height_plus = new Button("canvasArea.canvas.width - 55", "180", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height += 20 })
+        btn_height_minus = new Button("canvasArea.canvas.width - 90", "180", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height -= 20 })
+
+
 
         btn_delete_platform = new Button("canvasArea.canvas.width - 190", "300", 150, 60, "Delete Platform", 0, function() {
             
@@ -662,7 +672,18 @@ var UserInterface = {
                 ) {
                     MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.indexOf(platform)
                     clickedPlatform = true;
-                    this.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform]
+                    this.renderedButtons = [btn_exit_edit, btn_unselect, 
+                        
+                        btn_x_plus, 
+                        btn_x_minus, 
+                        btn_y_plus, 
+                        btn_y_minus, 
+                        btn_width_plus, 
+                        btn_width_minus,
+                        btn_height_plus,
+                        btn_height_minus,
+
+                        btn_delete_platform]
                 }
             })
             
@@ -1098,8 +1119,10 @@ class Button {
 
 class Map {
     platforms = [];
+    walls = [];
     mapData = [];
     renderedPlatforms = [];
+    renderedWalls = [];
     checkpoints = [];
     endZoneIsRendered = false;
     name;
@@ -1194,7 +1217,7 @@ class Map {
             this.checkpoints = mapData[3];
 
 
-            // Calculate lighting for each platform and the endzone
+            // Calculate lighting and shadows for each platform and the endzone
             this.style.lightAngleVector =  new Vector(Math.cos(this.style.lightAngle * (Math.PI/180)), Math.sin(this.style.lightAngle * (Math.PI/180)))
             var shadowX = this.style.lightAngleVector.x * this.style.shadowLength;
             var shadowY = this.style.lightAngleVector.y * this.style.shadowLength;
@@ -1202,10 +1225,17 @@ class Map {
             var platformIndex = 1 // kinda debug for map making
             this.platforms.forEach(platform => { // CALCULATE PLATFORMS COLORS and SHADOW POLYGON
 
+
+                // Setting the colors for platforms, endzones, and walls
                 var colorToUse = this.style.platformSideColor;
                 if(platform.endzone) {
                     colorToUse = this.style.endZoneSideColor;
                     this.endZone = platform;
+                }
+                if(platform.wall) {
+                    colorToUse = this.style.wallSideColor;
+                    // this.platforms.splice(this.platforms.indexOf(platform), 1) // remove from platforms array
+                    this.walls.push(platform);
                 }
 
                 platform.index = platformIndex; // asigns an index to each platform for debugging
@@ -1216,13 +1246,14 @@ class Map {
                 platform.side2Vec = new Vector(0,1).rotate(platform.angle)
                 platform.side3Vec = new Vector(1,0).rotate(platform.angle)
 
-                platform.sideColor1 = this.calculateShadedColor(platform.side1Vec, colorToUse) // COULD OPTIMIZE. Some sides arent visible at certain platfotm rotations. Those sides dont need to be calculated
+                platform.sideColor1 = this.calculateShadedColor(platform.side1Vec, colorToUse) // COULD OPTIMIZE. Some sides arent visible at certain platform rotations. Those sides dont need to be calculated
                 platform.sideColor2 = this.calculateShadedColor(platform.side2Vec, colorToUse)
                 platform.sideColor3 = this.calculateShadedColor(platform.side3Vec, colorToUse)
 
                 // SHADOW POLYGON
                 var angleRad = platform.angle * (Math.PI/180);
-    
+                var wallShadowMultiplier = platform.wall ? (this.style.wallHeight + this.style.platformHeight) / this.style.platformHeight : 1 // makes sure shadows are longer for taller walls
+
                 platform.shadowPoints = [ // ALL THE POSSIBLE POINTS TO INPUT IN CONVEX HULL FUNCTION
                 
                     // bot left corner
@@ -1243,7 +1274,7 @@ class Map {
                     ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
                     ],
 
-                    // bot left corner
+                    // top left corner
                     [
                     -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
                     -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
@@ -1251,51 +1282,67 @@ class Map {
 
                     // bot left SHADOW
                     [
-                    -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
-                    -((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
+                    -((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
                     ],
 
                     // bot right SHADOW
                     [
-                    ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
-                    ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
+                    ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
                     ],
 
                     // top right SHADOW
                     [
-                    ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
-                    ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
+                    ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
                     ],
 
-                    // bot left SHADOW
+                    // top left SHADOW
                     [
-                    -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX,
-                    -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY
+                    -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
+                    -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
                     ],
 
                 ]; // end of shadowPoints array
 
-                platform.shadowPoints = canvasArea.convexHull(platform.shadowPoints)
+                platform.corners = [] // save the first 4 corner coordinates before its modified bellow 
+                for(let i=0; i < 4; i++) { // creating a platform.corners array from the shadowpoints
+                    platform.corners.push([platform.shadowPoints[i][0], platform.shadowPoints[i][1] - this.style.platformHeight])
+                }
 
+                function sortCornersX(a, b) {
+                    // if return is negative ... a comes first 
+                    // if return is positive ... b comes first
+                    // return is 0... nothing is changed
+                    if (a[0] < b[0]) {return -1;}
+                    if (a[0] > b[0]) {return 1;}
+                    return 0;
+                }
+
+                platform.corners.sort(sortCornersX)
+
+                platform.shadowPoints = canvasArea.convexHull(platform.shadowPoints)
 
                 // SHADOW CLIP FOR UPPER PLAYER SHADOW
                 this.upperShadowClip.moveTo( // bot left
-                    platform.x + platform.width/2 -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)),
-                    platform.y + platform.height/2 -((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad))
+                    platform.x + platform.width/2 + platform.corners[0][0], // x
+                    platform.y + platform.height/2 + platform.corners[0][1] // y
                     )
+                
                 this.upperShadowClip.lineTo( // bot right
-                    platform.x + platform.width/2 + ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)),
-                    platform.y + platform.height/2 + ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad))
+                    platform.x + platform.width/2 + platform.corners[1][0],
+                    platform.y + platform.height/2 + platform.corners[1][1]
                 )
 
                 this.upperShadowClip.lineTo( // top right
-                    platform.x + platform.width/2 + ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
-                    platform.y + platform.height/2 + ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad))
+                    platform.x + platform.width/2 + platform.corners[2][0],
+                    platform.y + platform.height/2 + platform.corners[2][1]
                 )
 
                 this.upperShadowClip.lineTo( // top left
-                    platform.x + platform.width/2 -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
-                    platform.y + platform.height/2 -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad))
+                    platform.x + platform.width/2 + platform.corners[3][0],
+                    platform.y + platform.height/2 + platform.corners[3][1]
                 )
 
                 this.upperShadowClip.closePath()
@@ -1313,22 +1360,243 @@ class Map {
         });
     }
 
-    update() { // Figure out which platforms are in view. This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
+    update() {  // Figure out which platforms are in view. This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
+                // ALSO where walls z-order is determined. (if they're infront or behind player)
 
         this.renderedPlatforms = [];
+        this.renderedWalls = [];
 
-        this.platforms.forEach(platform => { // Loop through platforms
+        this.platforms.forEach(platform => { // Loop through ALL platforms
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+            var adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
+
 
             if (
                 (platform.x + platform.width/2 + hypotenuse + this.style.shadowLength > player.x - midX) && // coming into frame on left side
                 (platform.x + platform.width/2 - hypotenuse - this.style.shadowLength < player.x + midX) && // right side
                 (platform.y + platform.height/2 + hypotenuse + this.style.shadowLength + this.style.platformHeight > player.y - midY) && // top side
-                (platform.y + platform.height/2 - hypotenuse - this.style.shadowLength < player.y + midY) // bottom side
+                (platform.y + platform.height/2 - hypotenuse - this.style.shadowLength - adjustedHeight < player.y + midY) // bottom side
             ) {
                 this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
             }
+        }); // end of looping through ALL platforms
+
+
+        this.renderedPlatforms.forEach(platform => { // Loop through RENDERED platforms
+            
+            var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+
+            // checking walls for z order
+            if (platform.wall) {
+                this.renderedWalls.push(platform)
+
+                if ( // wall is close enough to player that player could be behind, infront, or colliding with it
+                    (platform.x + platform.width/2 + hypotenuse > player.x - 25) && // colliding with player from left
+                    (platform.x + platform.width/2 - hypotenuse < player.x + 25) && // right side
+                    (platform.y + platform.height/2 + hypotenuse > player.y - 73) && // top side
+                    (platform.y + platform.height/2 - hypotenuse - this.style.wallHeight < player.y + 25) // bottom side
+                ) { // test for collision and rendering z-order tests
+
+                    // used below
+                    let angle = player.lookAngle.getAngle();
+                    let angleRad = angle * (Math.PI/180);
+                    
+                    if (platform.x + platform.width/2 < player.x) { // wall is to the left
+
+                        // gets the player corner that is furthest left
+                        player.leftMostPlayerCornerX = null
+                        player.leftMostPlayerCornerY = null
+
+                        if (0 <= angle && angle < 90) { // bot left
+                            player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                            player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
+                        }
+
+                        if (90 <= angle && angle < 180) { // bot right
+                            player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                            player.leftMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
+                        }
+
+                        if (180 <= angle && angle < 270) { // top right
+                            player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                            player.leftMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
+                        }
+
+                        if (270 <= angle && angle < 360) { // top left
+                            player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                            player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
+                        }
+
+
+                        // get platform.corner x for right most corner (end of corners array) NOTE: corner array is in local space
+                        platform.rightMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
+                        platform.rightMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
+                        // console.log(platform.x + ": " + platform.rightMostPlatformCornerX )
+                        // console.log(platform.y + ": " + platform.rightMostPlatformCornerY )
+                        // console.log(player.leftMostPlayerCornerY)
+
+
+                        if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
+                            // render wall in front of player
+                            platform.renderedInfront = true;
+                        } else {
+                            // render wall normally (behind player)
+                            platform.renderedInfront = false;
+                        }
+
+                    } else { // wall is to the right
+
+                        // gets the player corner that is furthest right
+                        player.rightMostPlayerCornerX = null
+                        player.rightMostPlayerCornerY = null
+
+                        if (0 <= angle && angle < 90) { // top right
+                            player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                            player.rightMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
+                        }
+
+                        if (90 <= angle && angle < 180) { // top left
+                            player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                            player.rightMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
+                        }
+
+                        if (180 <= angle && angle < 270) { // bot left
+                            player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                            player.rightMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
+                        }
+
+                        if (270 <= angle && angle < 360) { // bot right
+                            player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                            player.rightMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
+                        }
+
+
+                        // get platform.corner x for left most corner (start of corners array) NOTE: corner array is in local space
+                        platform.leftMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
+                        platform.leftMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
+                        // console.log(platform.x + ": " + platform.leftMostPlatformCornerX )
+                        // console.log(platform.y + ": " + platform.leftMostPlatformCornerY )
+                        // console.log(player.rightMostPlayerCornerY)
+
+
+                        if (platform.leftMostPlatformCornerX > player.rightMostPlayerCornerX && platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
+                            // render wall in front of player
+                            platform.renderedInfront = true;
+                        } else {
+                            // render wall normally (behind player)
+                            platform.renderedInfront = false;
+                        }
+                    }
+                }
+            }
         });
+    }
+
+    renderPlatform(platform) { // seperate function to render platforms so that it can be called at different times (ex. called after drawing player inorder to render infront)
+        const ctx = canvasArea.ctx;
+        var adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
+
+        // DRAW PLATFORM TOP
+        ctx.save(); // ROTATING 
+        ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2 - adjustedHeight);
+        ctx.rotate(platform.angle * Math.PI/180);
+
+        // Change to endzone or wall color if needed. Also where its determined if endzone is being rendered
+        if (platform.endzone) {
+            ctx.fillStyle = this.style.endZoneTopColor;
+            this.endZoneIsRendered = true;
+        } else if (platform.wall) {
+            ctx.fillStyle = this.style.wallTopColor;
+            // this.endZoneIsRendered = true;
+        } else {
+            ctx.fillStyle = this.style.platformTopColor;
+        }
+        
+        ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
+
+
+        ctx.beginPath(); // line border on top
+        ctx.rect(-platform.width/2, -platform.height/2, platform.width, platform.height)
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore(); // restores platform rotation NOT translation
+
+
+        // SIDES OF PLATFORMS
+        ctx.save();
+        ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
+
+        var angleRad = platform.angle * (Math.PI/180);
+        
+
+        // platform angles should only be max of 90 and -90 in mapData
+        // calculating shading works with any angle but sides arent draw because drawing "if statements" are hardcoded to 90 degrees
+
+
+        if (-90 < platform.angle && platform.angle < 90) { // ALMOST ALWAYS RENDER BOTTOM SIDE. side2
+            ctx.fillStyle = platform.sideColor2; // sideColor2
+
+            ctx.beginPath();
+            ctx.moveTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) - adjustedHeight); // bot right
+            ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) - adjustedHeight); // bot left
+            ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+            ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+
+        if (0 < platform.angle && platform.angle <= 90) { // side3
+
+            ctx.fillStyle = platform.sideColor3; // sideColor3
+            ctx.beginPath();
+            ctx.moveTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) - adjustedHeight); // bot right
+            ctx.lineTo(platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) - adjustedHeight); // top right
+            ctx.lineTo(platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+            ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+        }
+
+        if (-90 <= platform.angle && platform.angle < 0) { // side1
+
+            ctx.fillStyle = platform.sideColor1; // sideColor1  
+            ctx.beginPath();
+            ctx.moveTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) - adjustedHeight); // bot left
+            ctx.lineTo(-platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) - adjustedHeight); // top left
+            ctx.lineTo(-platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+            ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+        }
+
+        // PLAFORM RENDERING DEBUG TEXT
+        // ctx.fillStyle = "#FFFFFF";
+        // ctx.fillText("index: " + platform.index, 0, -40);
+        // ctx.fillText("angle: " + platform.angle, 0,-20);
+        // ctx.fillText("position: " + platform.x + ", " + platform.y, 0 , 0)
+        // ctx.fillText("side1Vec: " + platform.side1Vec.x + ", " + platform.side1Vec.y, 0, 0);
+        // ctx.fillText("side2Vec: " + platform.side2Vec.x + ", " + platform.side2Vec.y, 0, 20);
+        // ctx.fillText("side3Vec: " + platform.side3Vec.x + ", " + platform.side3Vec.y, 0, 40);
+        
+        // ctx.fillText("side1: " + platform.sideColor1, 0, 60);
+        // ctx.fillText("side2: " + platform.sideColor2, 0, 80);
+        // ctx.fillText("side3: " + platform.sideColor3, 0, 100);
+
+        ctx.restore();
+
+        // drawing wall z-order debug points
+        // ctx.fillStyle = "#FF0000"
+        // ctx.fillRect(platform.rightMostPlatformCornerX - 2, platform.rightMostPlatformCornerY - 2, 4, 4)
+
+        // ctx.fillStyle = "#0000FF"
+        // ctx.fillRect(player.leftMostPlayerCornerX - 2, player.leftMostPlayerCornerY - 2, 4, 4)
     }
 
     render() { // Render the platforms that are in view (and player lower shadow)
@@ -1339,7 +1607,6 @@ class Map {
 
         ctx.save();
         ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
-    
 
 
         // DRAWING LOWER PLAYER SHADOW
@@ -1356,7 +1623,8 @@ class Map {
         ctx.restore(); // restore back to top corner of map for drawing the platforms
 
 
-        this.renderedPlatforms.forEach(platform => { // LOOP THROUGHT TO DRAW SHADOWS FIRST. This prevents shadows getting on top of other platforms
+        // LOOP THROUGHT TO DRAW SHADOWS FIRST. This prevents shadows getting on top of other platforms
+        this.renderedPlatforms.forEach(platform => { 
 
             ctx.save();
             ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
@@ -1380,103 +1648,16 @@ class Map {
         })
 
 
-
-        this.renderedPlatforms.forEach(platform => { // LOOP THROUGH RENDERABLE PLATFORMS (DRAW ACTUAL PLATFORMS)
-            ctx.strokeStyle = "#000000" // KILLKILLKILL MAYBE if u dont want borders
-            ctx.lineJoin = "round"
-            ctx.lineWidth = 2
-
-            // DRAW PLATFORM TOP
-            ctx.save(); // ROTATING 
-            ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
-            ctx.rotate(platform.angle * Math.PI/180);
-
-            // Change to endzone color if needed. Also where its determined if endzone is being rendered
-            if (platform.endzone) {
-                ctx.fillStyle = this.style.endZoneTopColor;
-                this.endZoneIsRendered = true;
-            } else {
-                ctx.fillStyle = this.style.platformTopColor;
+        // LOOP THROUGH RENDERABLE PLATFORMS (DRAW ACTUAL PLATFORMS) Only draw wall platforms that are behind player
+        ctx.strokeStyle = "#000000" // for borders
+        ctx.lineJoin = "round"
+        ctx.lineWidth = 2
+        this.renderedPlatforms.forEach(platform => {
+            if (!platform.renderedInfront) { // platforms and walls are to be drawn here -- behind the player
+                this.renderPlatform(platform);
             }
-            
-            ctx.fillRect(-platform.width/2, -platform.height/2, platform.width, platform.height);
+        }); // end of looping through platforms that are rendered behind player
 
-
-            ctx.beginPath(); // line border on top
-            ctx.rect(-platform.width/2, -platform.height/2, platform.width, platform.height)
-            ctx.closePath();
-            ctx.stroke();
-
-            ctx.restore();
-
-
-            // SIDES OF PLATFORMS
-            ctx.save();
-            ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
-
-            var angleRad = platform.angle * (Math.PI/180);
-            
-
-            // platform angles should only be max of 90 and -90 in mapData
-            // calculating shading works with any angle but sides arent draw because drawing "if statements" are hardcoded to 90 degrees
-
-
-            if (-90 < platform.angle && platform.angle < 90) { // ALMOST ALWAYS RENDER BOTTOM SIDE. side2
-                ctx.fillStyle = platform.sideColor2; // sideColor2
-
-                ctx.beginPath();
-                ctx.moveTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot right
-                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot left
-                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-            }
-
-
-            if (0 < platform.angle && platform.angle <= 90) { // side3
-
-                ctx.fillStyle = platform.sideColor3; // sideColor3
-                ctx.beginPath();
-                ctx.moveTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot right
-                ctx.lineTo(platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad))); // top right
-                ctx.lineTo(platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.lineTo(platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-            }
-
-            if (-90 <= platform.angle && platform.angle < 0) { // side1
-
-                ctx.fillStyle = platform.sideColor1; // sideColor1  
-                ctx.beginPath();
-                ctx.moveTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad))); // bot left
-                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad))); // top left
-                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) + (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) - (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.lineTo(-platform.width/2 * Math.cos(angleRad) - (platform.height/2 * Math.sin(angleRad)), -platform.width/2 * Math.sin(angleRad) + (platform.height/2 * Math.cos(angleRad)) + this.style.platformHeight);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-            }
-
-            // PLAFORM RENDERING DEBUG TEXT
-            // ctx.fillStyle = "#FFFFFF";
-            // ctx.fillText("index: " + platform.index, 0, -40);
-            // ctx.fillText("angle: " + platform.angle, 0,-20);
-            // ctx.fillText("side1Vec: " + platform.side1Vec.x + ", " + platform.side1Vec.y, 0, 0);
-            // ctx.fillText("side2Vec: " + platform.side2Vec.x + ", " + platform.side2Vec.y, 0, 20);
-            // ctx.fillText("side3Vec: " + platform.side3Vec.x + ", " + platform.side3Vec.y, 0, 40);
-            
-            // ctx.fillText("side1: " + platform.sideColor1, 0, 60);
-            // ctx.fillText("side2: " + platform.sideColor2, 0, 80);
-            // ctx.fillText("side3: " + platform.sideColor3, 0, 100);
-
-            ctx.restore();
-        }); // end of looping through platforms
 
 
         this.checkpoints.forEach(checkpoint => { // draw line to show checkpoint triggers
@@ -1488,6 +1669,23 @@ class Map {
 
 
         ctx.restore(); // RESTORING VIEW FOLLOWING PLAYER I THINK
+    }
+
+    renderWallsInfront() { // Called to render walls infront of (and after) player
+        const ctx = canvasArea.ctx;
+        ctx.save();
+        ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
+
+        ctx.strokeStyle = "#000000" // for borders
+        ctx.lineJoin = "round"
+        ctx.lineWidth = 2
+        this.renderedPlatforms.forEach(platform => {
+            if (platform.renderedInfront) { // only draws walls that are infront of the player
+                this.renderPlatform(platform);
+            }
+        });
+        ctx.restore();
+
     }
 }
 
@@ -1629,6 +1827,7 @@ class Player {
     // https://www.youtube.com/watch?v=v3zT3Z5apaM
     // https://www.youtube.com/watch?v=rTsXO6Zicls
     // https://www.youtube.com/watch?v=rTsXO6Zicls
+    // https://steamcommunity.com/sharedfiles/filedetails/?id=184184420
 
     wishDir = new Vector(0,0);   // left (-1,0) vector OR right (1,0) vector that is rotated by the change in angle that frame. 
                                 //if angle change is postive use Right vec. Negative use left vec
@@ -1667,7 +1866,6 @@ class Player {
         ctx.clip(map.upperShadowClip);
         ctx.translate(player.x , player.y);
     
-        // ctx.rotate(this.angle * Math.PI/180); // rotating canvas
         ctx.rotate(this.lookAngle.getAngle() * Math.PI/180)
 
         ctx.fillStyle = map.style.shadowColor;
@@ -1680,8 +1878,7 @@ class Player {
 
         // DRAWING PLAYER TOP
         ctx.translate(0, -this.jumpValue - 32); 
-        // ctx.rotate(this.angle * Math.PI/180); // rotating canvas
-        ctx.rotate(this.lookAngle.getAngle() * Math.PI/180)
+        ctx.rotate(this.lookAngle.getAngle() * Math.PI/180) // rotating canvas
         ctx.fillStyle = map.style.playerColor;
         ctx.fillRect(-16,-16,32,32)
 
@@ -1712,11 +1909,9 @@ class Player {
 
         // SIDES OF PLAYER
         ctx.save();
-        
 
         var angleRad = this.lookAngle.getAngle() * (Math.PI/180);
         var loopedAngle = this.lookAngle.getAngle();
-
 
 
         // GETTING CORNERS OF ROTATED RECTANGLE
@@ -1788,16 +1983,17 @@ class Player {
     }
 
     startLevel() {
-        this.velocity.set(6,0);
+        this.velocity.set(6,0); // 6,0
         this.velocity = this.velocity.rotate(this.lookAngle.getAngle());
     }
 
     updatePos(dt) {  // NEEDS TO BE FPS INDEPENDENT
         
-        if (UserInterface.levelState == 1 || UserInterface.levelState == 2) {
-            // this.angle += touchHandler.dragAmountX * UserInterface.sensitivity;
+        if (UserInterface.levelState == 1 || UserInterface.levelState == 2) { // if NOT at end screen
+
             this.lookAngle = this.lookAngle.rotate(touchHandler.dragAmountX * UserInterface.sensitivity)
             
+            // Setting wishDir
             if (touchHandler.dragAmountX > 0) {
                 this.wishDir = this.lookAngle.rotate(90) // look angle is already a normalized
                 this.wishDir.normalize(maxVelocity) // changes the length to be maxVelocity
@@ -1824,15 +2020,6 @@ class Player {
             addSpeed *= Math.cbrt(dt); // this is a hack to make gain consistent between fps changes BAD BAD BAD
             if (addSpeed > airAcceleration * dt) {addSpeed = airAcceleration * dt; console.log("maxspeed clipped by AA")} // addspeed is to big and needs to be limited by airacceleration value
             if (addSpeed <= 0) {addSpeed = 0; console.log("zero addspeed")} // currentSpeedProjected is greater than max_speed. dont add speed
-            
-            
-            // little strafe optimizer debug thing
-            console.log("currentSpeedProjected: " + this.currentSpeedProjected)
-            console.log("addSpeed: " + addSpeed)
-            console.log("dt: " + dt)
-            console.log("AA limit on addSpeed: " + airAcceleration * dt)
-            console.log(" ")
-            console.log(" ")
             
         
             // addSpeed is a scaler for wishdir. if addspeed == 0 no wishdir is applied
@@ -1862,7 +2049,12 @@ class Player {
                 this.jumpVelocity -= gravity * dt;
             }
 
-            // test if colliding with checkpoint triggers
+
+            // CHECK IF COLLIDING WITH WALLS
+            map.renderedWalls.forEach(wall => {})
+
+
+            // CHECK if colliding with checkpoint triggers
             map.checkpoints.forEach(checkpoint => {
                 
                 var distance = pDistance(this.x, this.y, checkpoint.triggerX1, checkpoint.triggerY1, checkpoint.triggerX2, checkpoint.triggerY2)
@@ -1908,7 +2100,8 @@ class Player {
                 }
             });
 
-            if (map.endZoneIsRendered) { // CHECK IF COLLIDING WITH ENDZONE
+            // CHECK IF COLLIDING WITH ENDZONE
+            if (map.endZoneIsRendered) { 
                 if (this.checkCollision([map.endZone])) {
                     AudioHandler.success();
                     UserInterface.handleRecord();
@@ -2235,21 +2428,30 @@ class Vector {
 function updateGameArea() { // CALLED EVERY FRAME
     
     // UPDATING OBJECTS
-    touchHandler.update(); 
+    touchHandler.update();
     UserInterface.update();
 
     if (UserInterface.gamestate == 6) {
         dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
         prevDateNow = Date.now();
+        
+        // Map sorts all in view platforms, walls, and player
+        // create a renderQueue [platform, wall, platform, player, wall, platform]
+        // canvasArea.renderQueue() {
+            // if platform {Map.renderPlatform()}
+            // if wall {Map.renderWall()}
+            // if player {Player.render()}
+        // }
 
-        map.update();
         player.updatePos(dt)
+        map.update();
     };
 
     if (UserInterface.gamestate == 7) {
-        // could only update if user is touching
+        // could only update if user is touching (no?)
         MapEditor.update();
     }
+
 
 
 
@@ -2258,8 +2460,10 @@ function updateGameArea() { // CALLED EVERY FRAME
 
     if (UserInterface.gamestate == 6) {
         map.render();
-        player.render();
+        player.render(); // called by map.render()
+        map.renderWallsInfront(); // called after player.render() so that select walls can be drawn in front of player 
     }
+    
 
     if (UserInterface.gamestate == 7) {
         MapEditor.render();
