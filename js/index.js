@@ -35,6 +35,7 @@ function onDeviceReady() { // Called on page load in HMTL
 var canvasArea = { //Canvas Object
     canvas : document.createElement("canvas"),
     
+
     start : function() { // called in deviceReady
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
@@ -52,6 +53,18 @@ var canvasArea = { //Canvas Object
     clear : function() { // CLEARS WHOLE CANVAS
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     },
+
+
+    renderTheQueue : function() {
+        map.renderQueue.forEach(queueItem => {
+            if (queueItem == player) {
+                player.render()
+            } else {
+                map.renderPlatform(queueItem)
+            }
+        })
+    },
+
 
     resize : function() {
         console.log("resized :)");
@@ -737,7 +750,7 @@ var UserInterface = {
                 canvasArea.ctx.fillText("player pos: " + Math.round(player.x) + ", " + Math.round(player.y), textX, 240);
                 canvasArea.ctx.fillText("dragging: " + touchHandler.dragging, textX, 260);
                 canvasArea.ctx.fillText("endZoneIsRendered: " + map.endZoneIsRendered, textX, 280);
-                canvasArea.ctx.fillText("dragAmountX Adjusted: " + touchHandler.dragAmountX * UserInterface.sensitivity / dt, textX, 300);
+                canvasArea.ctx.fillText("player posInRenderQueue: " + player.posInRenderQueue, textX, 300);
                 canvasArea.ctx.fillText("lookAngle Length: " + player.lookAngle.magnitude(), textX, 320);
                 canvasArea.ctx.fillText("velocity: " + player.velocity.x + ", " + player.velocity.y, textX, 340)
                 canvasArea.ctx.fillText("wishDir: " + player.wishDir.x + ", " + player.wishDir.y, textX, 360)
@@ -1122,7 +1135,8 @@ class Map {
     walls = [];
     mapData = [];
     renderedPlatforms = [];
-    renderedWalls = [];
+    renderQueue = [];
+    wallsToCheck = [];
     checkpoints = [];
     endZoneIsRendered = false;
     name;
@@ -1222,9 +1236,8 @@ class Map {
             var shadowX = this.style.lightAngleVector.x * this.style.shadowLength;
             var shadowY = this.style.lightAngleVector.y * this.style.shadowLength;
 
-            var platformIndex = 1 // kinda debug for map making
+            var platformIndex = 0 // set this so that it is z-order
             this.platforms.forEach(platform => { // CALCULATE PLATFORMS COLORS and SHADOW POLYGON
-
 
                 // Setting the colors for platforms, endzones, and walls
                 var colorToUse = this.style.platformSideColor;
@@ -1324,6 +1337,7 @@ class Map {
 
                 platform.shadowPoints = canvasArea.convexHull(platform.shadowPoints)
 
+                // FIX now that the corners are sorted this doesnt work as intended FIX
                 // SHADOW CLIP FOR UPPER PLAYER SHADOW
                 this.upperShadowClip.moveTo( // bot left
                     platform.x + platform.width/2 + platform.corners[0][0], // x
@@ -1360,16 +1374,16 @@ class Map {
         });
     }
 
-    update() {  // Figure out which platforms are in view. This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
-                // ALSO where walls z-order is determined. (if they're infront or behind player)
+    update() {  // Figure out which platforms are in view. 
+                // This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
+                // ALSO where player.posInRenderQueue is set (z-order is determined)
 
         this.renderedPlatforms = [];
-        this.renderedWalls = [];
+        this.wallsToCheck = [];
 
-        this.platforms.forEach(platform => { // Loop through ALL platforms
+        this.platforms.forEach(platform => { // Loop through ALL platforms to get renderedPlatforms
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
             var adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
-
 
             if (
                 (platform.x + platform.width/2 + hypotenuse + this.style.shadowLength > player.x - midX) && // coming into frame on left side
@@ -1380,22 +1394,33 @@ class Map {
                 this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
             }
         }); // end of looping through ALL platforms
+        
+
+        this.renderedPlatforms.push(player) // adds player to array
+        this.renderQueue = this.renderedPlatforms.toSorted() // sort by index of platform. UNLESS theyre already in order which is very possible. PROBABLY DONT NEED
+        this.renderedPlatforms.pop() // removes player from array
+        // console.log(this.renderedPlatforms)
+
+        // sort and index platforms on load of map
+        // platforms only need to be sorted once(given indexes once) and then the player just needs to be slotted in where they belong in the z-order of the render queue which is the map.renderedPlatforms array
 
 
+        
         this.renderedPlatforms.forEach(platform => { // Loop through RENDERED platforms
             
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
 
             // checking walls for z order
             if (platform.wall) {
-                this.renderedWalls.push(platform)
 
                 if ( // wall is close enough to player that player could be behind, infront, or colliding with it
                     (platform.x + platform.width/2 + hypotenuse > player.x - 25) && // colliding with player from left
                     (platform.x + platform.width/2 - hypotenuse < player.x + 25) && // right side
                     (platform.y + platform.height/2 + hypotenuse > player.y - 73) && // top side
                     (platform.y + platform.height/2 - hypotenuse - this.style.wallHeight < player.y + 25) // bottom side
-                ) { // test for collision and rendering z-order tests
+                ) { // test for player overlap and rendering z-order tests
+                    
+                    this.wallsToCheck.push(platform)
 
                     // used below
                     let angle = player.lookAngle.getAngle();
@@ -1431,17 +1456,21 @@ class Map {
                         // get platform.corner x for right most corner (end of corners array) NOTE: corner array is in local space
                         platform.rightMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
                         platform.rightMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
-                        // console.log(platform.x + ": " + platform.rightMostPlatformCornerX )
-                        // console.log(platform.y + ": " + platform.rightMostPlatformCornerY )
-                        // console.log(player.leftMostPlayerCornerY)
 
 
                         if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
-                            platform.renderedInfront = true;
+                            // if player.posInRenderQueue is same as platform, platform is drawn on top  
+                            // set player posInRenderQueue to be BEFORE/EQUAL wall index
+                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform)
+
+                            // platform.renderedInfront = true;
                         } else {
                             // render wall normally (behind player)
-                            platform.renderedInfront = false;
+                            // set player posInRenderQueue to be AFTER wall index
+                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform) + 1
+
+                            // platform.renderedInfront = false;
                         }
 
                     } else { // wall is to the right
@@ -1474,26 +1503,38 @@ class Map {
                         // get platform.corner x for left most corner (start of corners array) NOTE: corner array is in local space
                         platform.leftMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
                         platform.leftMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
-                        // console.log(platform.x + ": " + platform.leftMostPlatformCornerX )
-                        // console.log(platform.y + ": " + platform.leftMostPlatformCornerY )
-                        // console.log(player.rightMostPlayerCornerY)
 
 
                         if (platform.leftMostPlatformCornerX > player.rightMostPlayerCornerX && platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
-                            platform.renderedInfront = true;
+                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform)
                         } else {
+                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform) + 1
                             // render wall normally (behind player)
-                            platform.renderedInfront = false;
+                            // platform.renderedInfront = false;
                         }
                     }
+                } else { // not near wall to collide with
+
                 }
             }
         });
+        
+
+
     }
 
+
     renderPlatform(platform) { // seperate function to render platforms so that it can be called at different times (ex. called after drawing player inorder to render infront)
+        
         const ctx = canvasArea.ctx;
+        ctx.strokeStyle = "#000000" // for borders
+        ctx.lineJoin = "round"
+        ctx.lineWidth = 2
+        
+        ctx.save();
+        ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
+
         var adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
 
         // DRAW PLATFORM TOP
@@ -1577,19 +1618,14 @@ class Map {
         }
 
         // PLAFORM RENDERING DEBUG TEXT
-        // ctx.fillStyle = "#FFFFFF";
-        // ctx.fillText("index: " + platform.index, 0, -40);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText("index: " + platform.index, 0, -40);
+        ctx.fillText("real index: " + this.renderedPlatforms.indexOf(platform), 0, -20)
         // ctx.fillText("angle: " + platform.angle, 0,-20);
         // ctx.fillText("position: " + platform.x + ", " + platform.y, 0 , 0)
-        // ctx.fillText("side1Vec: " + platform.side1Vec.x + ", " + platform.side1Vec.y, 0, 0);
-        // ctx.fillText("side2Vec: " + platform.side2Vec.x + ", " + platform.side2Vec.y, 0, 20);
-        // ctx.fillText("side3Vec: " + platform.side3Vec.x + ", " + platform.side3Vec.y, 0, 40);
-        
-        // ctx.fillText("side1: " + platform.sideColor1, 0, 60);
-        // ctx.fillText("side2: " + platform.sideColor2, 0, 80);
-        // ctx.fillText("side3: " + platform.sideColor3, 0, 100);
 
-        ctx.restore();
+        ctx.restore(); // resets back from platform local space
+        ctx.restore(); // resets back to global space
 
         // drawing wall z-order debug points
         // ctx.fillStyle = "#FF0000"
@@ -1623,7 +1659,8 @@ class Map {
         ctx.restore(); // restore back to top corner of map for drawing the platforms
 
 
-        // LOOP THROUGHT TO DRAW SHADOWS FIRST. This prevents shadows getting on top of other platforms
+
+        // LOOP THROUGHT TO DRAW PLATFORMS LOWER SHADOWS
         this.renderedPlatforms.forEach(platform => { 
 
             ctx.save();
@@ -1634,7 +1671,7 @@ class Map {
             // ctx.filter = "blur(2px)"; // start blur
             ctx.beginPath();
             
-            ctx.moveTo(platform.shadowPoints[0][0], platform.shadowPoints[0][1]);
+            ctx.moveTo(platform.shadowPoints[0][0], platform.shadowPoints[0][1]); // this comes up in debug a lot
             for (let i = platform.shadowPoints.length - 1; i > 0; i --) {
                 ctx.lineTo(platform.shadowPoints[i][0], platform.shadowPoints[i][1]);
             }
@@ -1648,18 +1685,6 @@ class Map {
         })
 
 
-        // LOOP THROUGH RENDERABLE PLATFORMS (DRAW ACTUAL PLATFORMS) Only draw wall platforms that are behind player
-        ctx.strokeStyle = "#000000" // for borders
-        ctx.lineJoin = "round"
-        ctx.lineWidth = 2
-        this.renderedPlatforms.forEach(platform => {
-            if (!platform.renderedInfront) { // platforms and walls are to be drawn here -- behind the player
-                this.renderPlatform(platform);
-            }
-        }); // end of looping through platforms that are rendered behind player
-
-
-
         this.checkpoints.forEach(checkpoint => { // draw line to show checkpoint triggers
             ctx.beginPath(); 
             ctx.moveTo(checkpoint.triggerX1, checkpoint.triggerY1);
@@ -1669,23 +1694,6 @@ class Map {
 
 
         ctx.restore(); // RESTORING VIEW FOLLOWING PLAYER I THINK
-    }
-
-    renderWallsInfront() { // Called to render walls infront of (and after) player
-        const ctx = canvasArea.ctx;
-        ctx.save();
-        ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
-
-        ctx.strokeStyle = "#000000" // for borders
-        ctx.lineJoin = "round"
-        ctx.lineWidth = 2
-        this.renderedPlatforms.forEach(platform => {
-            if (platform.renderedInfront) { // only draws walls that are infront of the player
-                this.renderPlatform(platform);
-            }
-        });
-        ctx.restore();
-
     }
 }
 
@@ -1820,6 +1828,7 @@ class Player {
     endSlow = 1;
     gain = 0;
     checkpointIndex = -1;
+    posInRenderQueue = null;
     currentSpeedProjected = 0;
 
     // new movement code that uses real quake / source movement
@@ -2051,7 +2060,7 @@ class Player {
 
 
             // CHECK IF COLLIDING WITH WALLS
-            map.renderedWalls.forEach(wall => {})
+            map.wallsToCheck.forEach(wall => {})
 
 
             // CHECK if colliding with checkpoint triggers
@@ -2126,7 +2135,6 @@ class Player {
             }
         }
     }
-
 
     checkCollision(arrayOfPlatformsToCheck) { // called every time player hits the floor ALSO used to check endzone collision
         var collision = 0;
@@ -2435,33 +2443,32 @@ function updateGameArea() { // CALLED EVERY FRAME
         dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
         prevDateNow = Date.now();
         
+        player.updatePos(dt) // dont need dt
+        
         // Map sorts all in view platforms, walls, and player
-        // create a renderQueue [platform, wall, platform, player, wall, platform]
-        // canvasArea.renderQueue() {
-            // if platform {Map.renderPlatform()}
-            // if wall {Map.renderWall()}
-            // if player {Player.render()}
-        // }
-
-        player.updatePos(dt)
+        // places the player.posInRenderQueue where it belongs
         map.update();
     };
-
+    
     if (UserInterface.gamestate == 7) {
         // could only update if user is touching (no?)
         MapEditor.update();
     }
-
-
-
-
+    
+    
+    
+    
     // RENDERING OBJECTS
     canvasArea.clear();
 
     if (UserInterface.gamestate == 6) {
-        map.render();
-        player.render(); // called by map.render()
-        map.renderWallsInfront(); // called after player.render() so that select walls can be drawn in front of player 
+        
+        // should be called map.renderLowerShadows or map.renderBackground
+        map.render(); // draws player lower shadow and platform lower shadows. also draws checkpoints (draw walls' upper shadows elsewhere)
+
+        canvasArea.renderTheQueue()
+        
+        // player.render(); // called by map.render()
     }
     
 
