@@ -1324,16 +1324,6 @@ class Map {
                     platform.corners.push([platform.shadowPoints[i][0], platform.shadowPoints[i][1] - this.style.platformHeight])
                 }
 
-                function sortCornersX(a, b) {
-                    // if return is negative ... a comes first 
-                    // if return is positive ... b comes first
-                    // return is 0... nothing is changed
-                    if (a[0] < b[0]) {return -1;}
-                    if (a[0] > b[0]) {return 1;}
-                    return 0;
-                }
-
-                platform.corners.sort(sortCornersX)
 
                 platform.shadowPoints = canvasArea.convexHull(platform.shadowPoints)
 
@@ -1360,6 +1350,19 @@ class Map {
                 )
 
                 this.upperShadowClip.closePath()
+
+
+                // SORT CORNERS AFTER CREATING SHADOW CLIP
+                function sortCornersX(a, b) {
+                    // if return is negative ... a comes first 
+                    // if return is positive ... b comes first
+                    // return is 0... nothing is changed
+                    if (a[0] < b[0]) {return -1;}
+                    if (a[0] > b[0]) {return 1;}
+                    return 0;
+                }
+
+                platform.corners.sort(sortCornersX)
 
             });
 
@@ -1396,31 +1399,39 @@ class Map {
         }); // end of looping through ALL platforms
         
 
-        this.renderedPlatforms.push(player) // adds player to array
-        this.renderQueue = this.renderedPlatforms.toSorted() // sort by index of platform. UNLESS theyre already in order which is very possible. PROBABLY DONT NEED
-        this.renderedPlatforms.pop() // removes player from array
-        // console.log(this.renderedPlatforms)
+
 
         // sort and index platforms on load of map
         // platforms only need to be sorted once(given indexes once) and then the player just needs to be slotted in where they belong in the z-order of the render queue which is the map.renderedPlatforms array
 
 
+
+        var infrontPlayer = []
+        var behindPlayer = []
+        var indexSplitSpot = 9999 // if it stays 9999 all platforms will be rendered behind player. Kinda acts as the index of the player
+
         
-        this.renderedPlatforms.forEach(platform => { // Loop through RENDERED platforms
+
+        this.renderedPlatforms.forEach(platform => { // Loop through RENDERED platforms (will loop through in order of index)
             
+            //change to be platform.hypotenuse that is evaled on map load
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
 
-            // checking walls for z order
+            // checking if platform is a wall. 
+            // splitting walls into 2 arrays: infrontPlayer[] and behindPlayer[]. 
+            // Sort rendered platforms/walls that ARENT checked(close enough to player) into the appropriate array
+
+
             if (platform.wall) {
 
-                if ( // wall is close enough to player that player could be behind, infront, or colliding with it
+                if ( // wall is close enough to player that it needs to be checked with player rotation. Could be behind, infront, or colliding with it
                     (platform.x + platform.width/2 + hypotenuse > player.x - 25) && // colliding with player from left
                     (platform.x + platform.width/2 - hypotenuse < player.x + 25) && // right side
                     (platform.y + platform.height/2 + hypotenuse > player.y - 73) && // top side
                     (platform.y + platform.height/2 - hypotenuse - this.style.wallHeight < player.y + 25) // bottom side
                 ) { // test for player overlap and rendering z-order tests
                     
-                    this.wallsToCheck.push(platform)
+                    this.wallsToCheck.push(platform) // for checking if player is colliding with walls in player.updatePos()
 
                     // used below
                     let angle = player.lookAngle.getAngle();
@@ -1428,7 +1439,7 @@ class Map {
                     
                     if (platform.x + platform.width/2 < player.x) { // wall is to the left
 
-                        // gets the player corner that is furthest left
+                        // GETS the player corner that is furthest left
                         player.leftMostPlayerCornerX = null
                         player.leftMostPlayerCornerY = null
 
@@ -1453,24 +1464,18 @@ class Map {
                         }
 
 
-                        // get platform.corner x for right most corner (end of corners array) NOTE: corner array is in local space
+                        // GETS platform.corner x for right most corner (end of corners array) NOTE: corner array is in local space
                         platform.rightMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
                         platform.rightMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
 
 
                         if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
-                            // if player.posInRenderQueue is same as platform, platform is drawn on top  
-                            // set player posInRenderQueue to be BEFORE/EQUAL wall index
-                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform)
-
-                            // platform.renderedInfront = true;
+                            infrontPlayer.push(platform)
+                            if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
                         } else {
                             // render wall normally (behind player)
-                            // set player posInRenderQueue to be AFTER wall index
-                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform) + 1
-
-                            // platform.renderedInfront = false;
+                            behindPlayer.push(platform)
                         }
 
                     } else { // wall is to the right
@@ -1507,23 +1512,55 @@ class Map {
 
                         if (platform.leftMostPlatformCornerX > player.rightMostPlayerCornerX && platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
-                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform)
+                            infrontPlayer.push(platform)
+                            if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
+                            // if (platform.index < infrontMinIndex) {infrontMinIndex = platform.index}
+
                         } else {
-                            player.posInRenderQueue = this.renderedPlatforms.indexOf(platform) + 1
                             // render wall normally (behind player)
-                            // platform.renderedInfront = false;
+                            behindPlayer.push(platform)
+                            // if (platform.index > behindMaxIndex) {behindMaxIndex = platform.index}
                         }
                     }
-                } else { // not near wall to collide with
+                } else { // is a wall but not close enough to do a precise check. Sort into correct array based of index
+
+                    if (platform.index > indexSplitSpot) { // platform can also be rendered infront of player
+                        infrontPlayer.push(platform)
+                    } else {
+                        behindPlayer.push(platform)
+                    } // will need to sort these
 
                 }
+                
+            } else { // platform is NOT a wall. Sort into correct array based of index
+                
+                if (platform.index > indexSplitSpot) { // platform can also be rendered infront of player
+                    infrontPlayer.push(platform)
+                } else {
+                    behindPlayer.push(platform)
+                } // need to sort these ?? maybe not?
             }
-        });
-        
+
+        }); // end of looping through each rendered platform
+
+
+        function sortByIndex(a, b) { // move this sorting to map loading/saving screen 
+            // if return is negative ... a comes first 
+            // if return is positive ... b comes first
+            // return is 0... nothing is changed
+            if (a.index < b.index) {return -1;}
+            if (a.index > b.index) {return 1;}
+            return 0;
+        }
+
+        // this.renderQueue = this.renderedPlatforms.toSorted(sortByIndex) // sort by index of platform. UNLESS theyre already in order which is very possible. PROBABLY DONT NEED
+
+
+        this.renderQueue = behindPlayer.concat(player, infrontPlayer)
+        console.log(this.renderQueue)
 
 
     }
-
 
     renderPlatform(platform) { // seperate function to render platforms so that it can be called at different times (ex. called after drawing player inorder to render infront)
         
@@ -1837,6 +1874,7 @@ class Player {
     // https://www.youtube.com/watch?v=rTsXO6Zicls
     // https://www.youtube.com/watch?v=rTsXO6Zicls
     // https://steamcommunity.com/sharedfiles/filedetails/?id=184184420
+    // https://github.com/myria666/qMovementDoc/blob/main/Quake_s_Player_Movement.pdf
 
     wishDir = new Vector(0,0);   // left (-1,0) vector OR right (1,0) vector that is rotated by the change in angle that frame. 
                                 //if angle change is postive use Right vec. Negative use left vec
@@ -2060,7 +2098,11 @@ class Player {
 
 
             // CHECK IF COLLIDING WITH WALLS
-            map.wallsToCheck.forEach(wall => {})
+            if (this.checkCollision(map.wallsToCheck)) {
+                AudioHandler.splash();
+                this.teleport();
+            }
+    
 
 
             // CHECK if colliding with checkpoint triggers
