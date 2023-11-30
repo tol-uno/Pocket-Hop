@@ -1,6 +1,6 @@
 document.addEventListener("deviceready", onDeviceReady, false);
 
-let airAcceleration = 5; // the sharpness your allowed to turn at
+let airAcceleration = 4; // the sharpness your allowed to turn at
 let maxVelocity = 1.12; // basically the rate at which speed is gained / lost. wishDir is scaled to this magnitude
 let gravity = 0.05;
 let prevDateNow;
@@ -46,7 +46,8 @@ var canvasArea = { //Canvas Object
         this.ctx = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
         
-        prevDateNow = Date.now(); // For Delta Time
+        prevDateNow = performance.now()
+
         this.interval = setInterval(updateGameArea, 10); // Number sets the taget frame rate. 1000/# = FPS
     },
 
@@ -63,6 +64,25 @@ var canvasArea = { //Canvas Object
                 map.renderPlatform(queueItem)
             }
         })
+
+        // draw shadow border if player is behind wall
+        if (map.renderQueue[map.renderQueue.length - 1] != player) { // if player is not last in renderQueue
+            canvasArea.ctx.save()
+            
+            canvasArea.ctx.translate(-player.x + midX, -player.y + midY)
+            canvasArea.ctx.clip(map.behindWallClip);
+            canvasArea.ctx.translate(player.x , player.y);
+        
+            canvasArea.ctx.rotate(player.lookAngle.getAngle() * Math.PI/180)
+
+            canvasArea.ctx.strokeStyle = map.style.playerColor
+            canvasArea.ctx.lineWidth = 2
+            canvasArea.ctx.beginPath()
+            canvasArea.ctx.strokeRect(-15, -15, 30, 30)
+            canvasArea.ctx.stroke()
+
+            canvasArea.ctx.restore() // clears behindWallClip
+        }
     },
 
 
@@ -216,7 +236,7 @@ var UserInterface = {
     volume : null,
     
     timer : 0,
-    timerStart : Date.now(), // dont need to pull date here
+    timerStart : null, // set by jump button
     levelState : 1, // 1 = pre-start, 2 = playing level, 3 = in endzone
 
     start : function() {
@@ -358,12 +378,15 @@ var UserInterface = {
                     "style": {
                         "platformTopColor": "rgba(209,70,63,1)",
                         "platformSideColor": "rgba(209,70,63,1)",
+                        "wallTopColor": "rgba(125, 94, 49, 1)",
+                        "wallSideColor": "rgba(125, 94, 49, 1)",
                         "endZoneTopColor": "rgba(255,218,98,1)",
                         "endZoneSideColor": "rgba(255,218,98,1)",
                         "backgroundColor": "#a3d5e1",
                         "shadowColor": "#07070a25",
                         "playerColor": "rgba(239,238,236,1)",
                         "platformHeight": 25,
+                        "wallHeight": 50,
                         "lightAngle": 45,
                         "shadowContrastLight": -0.005,
                         "shadowContrastDark": -0.4,
@@ -376,7 +399,8 @@ var UserInterface = {
                             "width": 100,
                             "height": 100,
                             "angle": 0,
-                            "endzone": 1
+                            "endzone": 1,
+                            "wall": 0
                         },
                         {
                             "x": 300,
@@ -384,7 +408,8 @@ var UserInterface = {
                             "width": 100,
                             "height": 100,
                             "angle": 45,
-                            "endzone": 0
+                            "endzone": 0,
+                            "wall": 0
                         }
                     ]
                 }
@@ -425,16 +450,19 @@ var UserInterface = {
                     "y": map.playerStart.y,
                     "angle": map.playerStart.angle
                 },
-            downloadMap.checkpoints = [];
+            downloadMap.checkpoints = map.checkpoints;
             downloadMap.style = {
                     "platformTopColor": map.style.platformTopColor,
                     "platformSideColor": map.style.platformSideColor,
+                    "wallTopColor": map.style.wallTopColor,
+                    "wallSideColor": map.style.wallSideColor,
                     "endZoneTopColor": map.style.endZoneTopColor,
                     "endZoneSideColor": map.style.endZoneSideColor,
                     "backgroundColor": map.style.backgroundColor,
                     "shadowColor": map.style.shadowColor,
                     "playerColor": map.style.playerColor,
                     "platformHeight": map.style.platformHeight,
+                    "wallHeight": map.style.wallHeight,
                     "lightAngle": map.style.lightAngle,
                     "shadowContrastLight": map.style.shadowContrastLight,
                     "shadowContrastDark": map.style.shadowContrastDark,
@@ -449,7 +477,8 @@ var UserInterface = {
                         "width": platform.width,
                         "height": platform.height,
                         "angle": platform.angle,
-                        "endzone": platform.endzone
+                        "endzone": platform.endzone,
+                        "wall": platform.wall
                     }
                 )
             })
@@ -485,7 +514,8 @@ var UserInterface = {
                 "width": 100,
                 "height": 100,
                 "angle": 0,
-                "endzone": 0
+                "endzone": 0,
+                "wall": 0
             }
 
 
@@ -509,8 +539,26 @@ var UserInterface = {
         btn_width_minus = new Button("canvasArea.canvas.width - 90", "160", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].width -= 20 })
         btn_height_plus = new Button("canvasArea.canvas.width - 55", "180", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height += 20 })
         btn_height_minus = new Button("canvasArea.canvas.width - 90", "180", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height -= 20 })
-
-
+        btn_angle_plus = new Button("canvasArea.canvas.width - 55", "200", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle += 20 })
+        btn_angle_minus = new Button("canvasArea.canvas.width - 90", "200", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle -= 20 })
+        btn_wall = new Button("canvasArea.canvas.width - 90", "220", 40, 20, "toggle", 1, function(init) { 
+            if (MapEditor.loadedMap) { // throws an error otherwise
+                
+                if (init) {
+                    this.toggle = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall?1:0; // gets initial value of toggle
+                    console.log("init run")
+                } else {
+                    if (this.toggle) {
+                        this.toggle = 0;
+                        MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall = 1
+                    } else {
+                        this.toggle = 1;
+                        MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall = 0
+                    }
+                }
+            }    
+        })
+        
 
         btn_delete_platform = new Button("canvasArea.canvas.width - 190", "300", 150, 60, "Delete Platform", 0, function() {
             
@@ -695,6 +743,9 @@ var UserInterface = {
                         btn_width_minus,
                         btn_height_plus,
                         btn_height_minus,
+                        btn_angle_plus,
+                        btn_angle_minus,
+                        btn_wall,
 
                         btn_delete_platform]
                 }
@@ -740,7 +791,7 @@ var UserInterface = {
     
                 canvasArea.ctx.fillText("dragAmountX: " + touchHandler.dragAmountX, textX, 60);
                 canvasArea.ctx.fillText("fps: " + Math.round(100/dt), textX, 80);
-                canvasArea.ctx.fillText("rounded dt: " + Math.round(dt) + " milliseconds", textX, 100);
+                canvasArea.ctx.fillText("rounded dt: " + Math.round(dt * 10) / 10 + " milliseconds", textX, 100);
                 canvasArea.ctx.fillText("velocity: " + Math.round(player.velocity.magnitude()), textX, 120);
                 canvasArea.ctx.fillText("lookAngle: " + player.lookAngle.getAngle(), textX, 140);
                 canvasArea.ctx.fillText("timer: " + UserInterface.secondsToMinutes(this.timer), textX, 160);
@@ -758,12 +809,24 @@ var UserInterface = {
             }
     
     
-            if (this.strafeHUD == 1) { // STRAFE OPTIMIZER HUD. FIX THIS
+            if (this.strafeHUD == 1) { // STRAFE OPTIMIZER HUD
                 
                 canvasArea.ctx.fillRect(midX - 18, midY + 28, 8, 4 * Math.abs(touchHandler.dragAmountX) * UserInterface.sensitivity); // YOUR STRAFE
-                canvasArea.ctx.fillRect(midX - 4, midY + 28, 8, 100 * player.currentSpeedProjected); // THE THRESHOLD
-                canvasArea.ctx.fillRect(midX + 10, midY + 28, 8, 40 ); // GAIN
+                canvasArea.ctx.fillRect(midX - 4, midY + 28, 8, 10 * player.currentSpeedProjected); // THE THRESHOLD
+                canvasArea.ctx.fillRect(midX + 12, midY + 28 + 10 * airAcceleration * dt , 8, 2); // ADDSPEED LIMIT
+                canvasArea.ctx.fillRect(midX + 10, midY + 28, 8, 10 * player.addSpeed ); // GAIN
 
+                // little text for strafeHelper
+                canvasArea.ctx.save()
+                canvasArea.ctx.font = "12px sans-serif";
+                canvasArea.ctx.fillStyle = "black"; 
+                canvasArea.ctx.translate(midX - 17, midY + 28)
+                canvasArea.ctx.rotate(90 * Math.PI / 180)
+                canvasArea.ctx.fillText("dragAmountX", 0, 0)
+                canvasArea.ctx.fillText("currentSpeedProjected: " + player.currentSpeedProjected, 0, -14)
+                canvasArea.ctx.fillText("addSpeed: " + player.addSpeed, 0, -28)
+                canvasArea.ctx.fillText("airAcceleration * dt: " + airAcceleration * dt, 0, -42)
+                canvasArea.ctx.restore()
 
                 // DRAWING PLAYER MOVEMENT DEBUG VECTORS
                 // player wishDir
@@ -861,9 +924,10 @@ var MapEditor = {
                 ctx.rotate(platform.angle * Math.PI/180);
 
                 // Change to endzone color if needed. Also where its determined if endzone is being rendered
-                if (platform.endzone) {
+                if (platform.wall) {
+                    ctx.fillStyle = this.loadedMap.style.wallTopColor;
+                } else if (platform.endzone) {
                     ctx.fillStyle = this.loadedMap.style.endZoneTopColor;
-                    this.loadedMap.endZoneIsRendered = true;
                 } else {
                     ctx.fillStyle = this.loadedMap.style.platformTopColor;
                 }
@@ -961,6 +1025,10 @@ var MapEditor = {
 
                     ctx.fillText("Width: " + this.loadedMap.platforms[this.selectedPlatformIndex].width, canvasArea.canvas.width - 190, 180);
                     ctx.fillText("Height: " + this.loadedMap.platforms[this.selectedPlatformIndex].height, canvasArea.canvas.width - 190, 200);
+
+                    ctx.fillText("Angle: " + this.loadedMap.platforms[this.selectedPlatformIndex].angle, canvasArea.canvas.width - 190, 220)
+
+                    ctx.fillText("Wall: " + (this.loadedMap.platforms[this.selectedPlatformIndex].wall?"Yes":"No"), canvasArea.canvas.width - 190, 240)
 
 
                     // this.gizmoMidX = this.loadedMap.platforms[this.selectedPlatformIndex].x + this.loadedMap.platforms[this.selectedPlatformIndex].width/2 + this.screenX
@@ -1142,6 +1210,7 @@ class Map {
     name;
     record;
     upperShadowClip = new Path2D();
+    behindWallClip = new Path2D();
     endZone;
 
 
@@ -1286,13 +1355,13 @@ class Map {
                     ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
                     ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
                     ],
-
+                
                     // top left corner
                     [
                     -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)),
                     -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight
                     ],
-
+                
                     // bot left SHADOW
                     [
                     -((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
@@ -1304,30 +1373,81 @@ class Map {
                     ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
                     ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
                     ],
-
+                    
                     // top right SHADOW
                     [
                     ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
                     ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
-                    ],
+                ],
 
-                    // top left SHADOW
-                    [
+                // top left SHADOW
+                [
                     -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
                     -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
-                    ],
+                ],
+                
+            ]; // end of shadowPoints array
+            
+            
+            
+            platform.corners = [] // save the first 4 corner coordinates before its modified bellow
+            for(let i=0; i < 4; i++) { // creating a platform.corners array from the shadowpoints
+                platform.corners.push([platform.shadowPoints[i][0], platform.shadowPoints[i][1] - this.style.platformHeight])
+            }
 
-                ]; // end of shadowPoints array
 
-                platform.corners = [] // save the first 4 corner coordinates before its modified bellow 
-                for(let i=0; i < 4; i++) { // creating a platform.corners array from the shadowpoints
-                    platform.corners.push([platform.shadowPoints[i][0], platform.shadowPoints[i][1] - this.style.platformHeight])
+            if (platform.wall) // add wall's shape to behindWallClip (for drawing player outline behind walls)
+            {
+                    // corners + wall height points need to be "concated" as serperate variable otherwise they dont stay as points
+                    var upperCorners = [
+                        [
+                            platform.corners[0][0],
+                            platform.corners[0][1] - this.style.wallHeight
+                        ],
+                        [
+                            platform.corners[1][0],
+                            platform.corners[1][1] - this.style.wallHeight
+                        ],
+                        [
+                            platform.corners[2][0],
+                            platform.corners[2][1] - this.style.wallHeight
+                        ],
+                        [
+                            platform.corners[3][0],
+                            platform.corners[3][1] - this.style.wallHeight
+                        ],
+                    ] 
+
+                    var behindWallClipPoints = platform.corners.concat(upperCorners)
+            
+                    behindWallClipPoints = canvasArea.convexHull(behindWallClipPoints)
+
+                    // ADD TO CLIP SHAPE FOR AREAS BEHIND WALLS
+                    // the behindWallClip array can have different lengths so it must dynamicly go through the array of points
+                    for (let i = 0; i < behindWallClipPoints.length; i++) {
+                        if (i == 0) { // first point in array so use moveTo
+                            this.behindWallClip.moveTo(
+                                platform.x + platform.width/2 + behindWallClipPoints[i][0], // x
+                                platform.y + platform.height/2 + behindWallClipPoints[i][1] // y
+                            )
+                        } else { // its not the first point in the hull so use lineTo
+                            this.behindWallClip.lineTo(
+                                platform.x + platform.width/2 + behindWallClipPoints[i][0], // x
+                                platform.y + platform.height/2 + behindWallClipPoints[i][1] // y
+                            )
+                        }
+                    }
+
+                    this.behindWallClip.closePath()
                 }
+
+
 
 
                 platform.shadowPoints = canvasArea.convexHull(platform.shadowPoints)
 
-                // FIX now that the corners are sorted this doesnt work as intended FIX
+
+
                 // SHADOW CLIP FOR UPPER PLAYER SHADOW
                 this.upperShadowClip.moveTo( // bot left
                     platform.x + platform.width/2 + platform.corners[0][0], // x
@@ -1352,7 +1472,7 @@ class Map {
                 this.upperShadowClip.closePath()
 
 
-                // SORT CORNERS AFTER CREATING SHADOW CLIP
+                // SORT CORNERS AFTER CREATING SHADOW and behindWall CLIP
                 function sortCornersX(a, b) {
                     // if return is negative ... a comes first 
                     // if return is positive ... b comes first
@@ -1379,7 +1499,7 @@ class Map {
 
     update() {  // Figure out which platforms are in view. 
                 // This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
-                // ALSO where player.posInRenderQueue is set (z-order is determined)
+                // ALSO where player is slotted into RenderQueue (z-order is determined)
 
         this.renderedPlatforms = [];
         this.wallsToCheck = [];
@@ -1417,9 +1537,11 @@ class Map {
             //change to be platform.hypotenuse that is evaled on map load
             var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
 
-            // checking if platform is a wall. 
+            // checking if platform is a wall
             // splitting walls into 2 arrays: infrontPlayer[] and behindPlayer[]. 
             // Sort rendered platforms/walls that ARENT checked(close enough to player) into the appropriate array
+
+
 
 
             if (platform.wall) {
@@ -1437,8 +1559,7 @@ class Map {
                     let angle = player.lookAngle.getAngle();
                     let angleRad = angle * (Math.PI/180);
                     
-                    if (platform.x + platform.width/2 < player.x) { // wall is to the left
-
+                    if (platform.x + platform.width/2 < player.x) { // WALL IS TO THE LEFT
                         // GETS the player corner that is furthest left
                         player.leftMostPlayerCornerX = null
                         player.leftMostPlayerCornerY = null
@@ -1469,7 +1590,10 @@ class Map {
                         platform.rightMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
 
 
-                        if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
+                        var cornerExtensionY = platform.rightMostPlatformCornerY + (player.leftMostPlayerCornerX - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))
+                        // console.log("cornerExtensionY: " + Math.round(cornerExtensionY) + " || PlayerY: " + Math.round(player.leftMostPlayerCornerY))
+
+                        if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && cornerExtensionY > player.leftMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
                             infrontPlayer.push(platform)
                             if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
@@ -1478,7 +1602,7 @@ class Map {
                             behindPlayer.push(platform)
                         }
 
-                    } else { // wall is to the right
+                    } else { // WALL IS TO THE RIGHT
 
                         // gets the player corner that is furthest right
                         player.rightMostPlayerCornerX = null
@@ -1506,11 +1630,12 @@ class Map {
 
 
                         // get platform.corner x for left most corner (start of corners array) NOTE: corner array is in local space
-                        platform.leftMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
-                        platform.leftMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
+                        platform.leftMostPlatformCornerX = platform.corners[0][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
+                        platform.leftMostPlatformCornerY = platform.corners[0][1] + platform.y + platform.height/2
 
+                        var cornerExtensionY = platform.leftMostPlatformCornerY + (player.rightMostPlayerCornerX - platform.leftMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))
 
-                        if (platform.leftMostPlatformCornerX > player.rightMostPlayerCornerX && platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
+                        if (platform.leftMostPlatformCornerX < player.rightMostPlayerCornerX && cornerExtensionY > player.rightMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
                             infrontPlayer.push(platform)
                             if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
@@ -1556,8 +1681,8 @@ class Map {
         // this.renderQueue = this.renderedPlatforms.toSorted(sortByIndex) // sort by index of platform. UNLESS theyre already in order which is very possible. PROBABLY DONT NEED
 
 
-        this.renderQueue = behindPlayer.concat(player, infrontPlayer)
-        console.log(this.renderQueue)
+        this.renderQueue = behindPlayer.concat(player, infrontPlayer) // combine arrays 
+        // console.log(this.renderQueue)
 
 
     }
@@ -1655,13 +1780,26 @@ class Map {
         }
 
         // PLAFORM RENDERING DEBUG TEXT
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillText("index: " + platform.index, 0, -40);
-        ctx.fillText("real index: " + this.renderedPlatforms.indexOf(platform), 0, -20)
+        // ctx.fillStyle = "#FFFFFF";
+        // ctx.fillText("index: " + platform.index, 0, -40);
+        // ctx.fillText("real index: " + this.renderedPlatforms.indexOf(platform), 0, -20)
         // ctx.fillText("angle: " + platform.angle, 0,-20);
         // ctx.fillText("position: " + platform.x + ", " + platform.y, 0 , 0)
 
-        ctx.restore(); // resets back from platform local space
+        // var platformSpineY = platform.y + ((player.x - platform.x) * Math.tan(platform.angle * (Math.PI/180))) 
+        // ctx.fillRect(player.x - platform.x, (player.x - platform.x) * Math.tan(platform.angle * (Math.PI/180)), 15, 15)
+
+        
+        ctx.restore(); // resets back from platform local space. player view space??
+        
+        // ctx.beginPath();
+        // ctx.moveTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY)
+        // ctx.lineTo(player.x, platform.rightMostPlatformCornerY + (player.x - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)))
+        // ctx.lineTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY + (player.x - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)))
+        // ctx.closePath();
+        // ctx.stroke();
+        // ctx.fillRect(player.x, platform.leftMostPlatformCornerY + ((player.x - platform.leftMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))), 15,15)
+        
         ctx.restore(); // resets back to global space
 
         // drawing wall z-order debug points
@@ -1865,8 +2003,10 @@ class Player {
     endSlow = 1;
     gain = 0;
     checkpointIndex = -1;
-    posInRenderQueue = null;
+    posInRenderQueue = null; // Not Used
+
     currentSpeedProjected = 0;
+    addSpeed = 0; // initialized here so that userInterface can access for debug
 
     // new movement code that uses real quake / source movement
     // https://adrianb.io/2015/02/14/bunnyhop.html
@@ -2058,20 +2198,24 @@ class Player {
         if (UserInterface.levelState == 2) { // 1 = pre-start, 2 = playing level, 3 = in endzone
 
             // ALL MOVEMENT CALCULATIONS
-            this.currentSpeedProjected = this.velocity.dotProduct(this.wishDir); // Vector projection of Current_velocity onto wishDir... hopefully
-            
-
             // THIS IS VIDEO VERSION OF QUAKE1 CODE	
-            // addSpeed is clipped between 0 -> MAX_ACCEL * dt  --- addSpeed should only be 0 when wishDir is 0
-            let addSpeed = maxVelocity - this.currentSpeedProjected; // sometimes currentSpeedProj is negative
-            addSpeed *= Math.cbrt(dt); // this is a hack to make gain consistent between fps changes BAD BAD BAD
-            if (addSpeed > airAcceleration * dt) {addSpeed = airAcceleration * dt; console.log("maxspeed clipped by AA")} // addspeed is to big and needs to be limited by airacceleration value
-            if (addSpeed <= 0) {addSpeed = 0; console.log("zero addspeed")} // currentSpeedProjected is greater than max_speed. dont add speed
+
+            this.currentSpeedProjected = this.velocity.dotProduct(this.wishDir); // Vector projection of Current_velocity onto wishDir
+
+            // addSpeed is clipped between 0 and MAX_ACCEL * dt  --- addSpeed should only be 0 when wishDir is 0
+            this.addSpeed = maxVelocity - this.currentSpeedProjected; // sometimes currentSpeedProj is negative
+            
+            // this is a hack to make gain consistent between fps changes BAD BAD BAD BS
+            // https://www.desmos.com/calculator/k1uc1yai14
+            this.addSpeed *= (0.25 * (Math.cbrt(dt)+3)) 
+            
+            if (this.addSpeed > airAcceleration * dt) {this.addSpeed = airAcceleration * dt; console.log("maxspeed clipped by AA")} // addspeed is to big and needs to be limited by airacceleration value
+            if (this.addSpeed <= 0) {this.addSpeed = 0; console.log("zero addspeed")} // currentSpeedProjected is greater than max_speed. dont add speed
             
         
             // addSpeed is a scaler for wishdir. if addspeed == 0 no wishdir is applied
-            this.velocity.x += (this.wishDir.x * addSpeed)
-            this.velocity.y += (this.wishDir.y * addSpeed)
+            this.velocity.x += (this.wishDir.x * this.addSpeed)
+            this.velocity.y += (this.wishDir.y * this.addSpeed)
             // addSpeed needs to be adjusted by dt. Bigger dt, less fps, bigger addSpeed
 
 
@@ -2089,7 +2233,7 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    this.teleport();
+                    // this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
@@ -2482,9 +2626,10 @@ function updateGameArea() { // CALLED EVERY FRAME
     UserInterface.update();
 
     if (UserInterface.gamestate == 6) {
-        dt = (Date.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
-        prevDateNow = Date.now();
         
+        dt = (performance.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
+        prevDateNow = performance.now();
+
         player.updatePos(dt) // dont need dt
         
         // Map sorts all in view platforms, walls, and player
@@ -2510,7 +2655,6 @@ function updateGameArea() { // CALLED EVERY FRAME
 
         canvasArea.renderTheQueue()
         
-        // player.render(); // called by map.render()
     }
     
 
