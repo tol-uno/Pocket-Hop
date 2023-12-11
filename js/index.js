@@ -135,7 +135,6 @@ var canvasArea = { //Canvas Object
 }
 
 
-
 class SliderUI {
     confirmed = true;
 
@@ -218,6 +217,7 @@ class SliderUI {
 
     resize() {}
 }
+
 
 var UserInterface = {
     
@@ -482,6 +482,15 @@ var UserInterface = {
                     }
                 )
             })
+
+
+            // downloadMap.platforms.sort(MapEditor.sortPlatforms)
+            console.log(JSON.stringify(downloadMap.platforms))
+
+            MapEditor.sortPlatforms2(downloadMap.platforms)
+
+            console.log(JSON.stringify(downloadMap.platforms))
+
 
             var savemap = confirm("Save Map?");
             if (savemap) {
@@ -1121,7 +1130,214 @@ var MapEditor = {
 
 
     
+    },
+
+
+
+
+
+    sortPlatforms2 : function(platforms) { 
+        // inefficient sorting algorithm but its only run on map save so whatever
+        // this doesnt need to return anything because it's directly editing the object its passed as a perameter (not a copy)
+
+
+        // sort all platforms by y initially (keeps rendering order correct when some platforms arent compared with each other)
+        platforms.sort(sortY)
+
+        function sortY(a, b) {
+            // if return is negative ... a comes first 
+            // if return is positive ... b comes first
+            // return is 0... nothing is changed
+            if (a.y + a.height/2 < b.y + b.height/2) {return -1;}
+            if (a.y + a.height/2 > b.y + b.height/2) {return 1;}
+            return 0;
+        }
+
+
+        console.log("platforms.length = " + platforms.length)
+
+        for (let i = 0; i < platforms.length; i++) { // if its NOT the last platform. dont need to test last platform
+
+            // takes platforms[i] and compares it to every other platform using compareIndex
+            // Needs to do this otherwise long walls create this gap where two platforms arent being compared to each other.
+        
+            for (let compareIndex = 1; compareIndex + i < platforms.length; compareIndex ++) {
+
+                if (shouldBeInFront(platforms[i], platforms[i+compareIndex]) == true) {
+
+                    // swap them in the array
+                    console.log("SWAPED.  i=" + i + "  compareIndex=" + compareIndex + "  (" + platforms[i].x + ", " + platforms[i].y + ") with (" + platforms[i+compareIndex].x + ", " + platforms[i+compareIndex].y + ")")
+
+                    var temp = platforms[i]
+                    platforms[i] = platforms[i+compareIndex]
+                    platforms[i+compareIndex] = temp 
+                } else {
+                    console.log("No swap. i=" + i + "  compareIndex=" + compareIndex)
+                }
+            }
+        }
+
+        console.log("done sorting")
+    
+        
+
+        function shouldBeInFront(a,b) {
+
+            // a is in correct spot behind b
+            // return false; 
+
+            // a should be rendered infront of b
+            // return true;
+
+
+            // only sort/swap if platforms could be overlapping each other.
+            var hypotenuse_a = Math.sqrt(a.width * a.width + a.height * a.height)/2
+            var hypotenuse_b = Math.sqrt(b.width * b.width + b.height * b.height)/2
+
+            var adjustedHeight_a = a.wall ? MapEditor.loadedMap.style.wallHeight : 0 // for adding height to a if its a wall
+            var adjustedHeight_b = b.wall ? MapEditor.loadedMap.style.wallHeight : 0 // for adding height to b if its a wall
+
+            if (
+                    (a.x + a.width/2 + hypotenuse_a > b.x + b.width/2 - hypotenuse_b) && // a colliding with b from left side
+                    (a.x + a.width/2 - hypotenuse_a < b.x + b.width/2 + hypotenuse_b) && // right side
+                    (a.y + a.height/2 + hypotenuse_a > b.y + b.height/2 - hypotenuse_b - adjustedHeight_b) && // top side
+                    (a.y + a.height/2 - hypotenuse_a - adjustedHeight_a < b.y + b.height/2 + hypotenuse_b) // bottom side (could also use downloadMap here i think)
+                ) {
+                
+                // corners will be added/sorted after first loop. check if they are already added.
+                if (!("corners" in a)) {
+                    var angleRad = a.angle * (Math.PI/180);
+                    a.corners = [
+                        // bot left corner        
+                        [
+                        -((a.width / 2) * Math.cos(angleRad)) - ((a.height / 2) * Math.sin(angleRad)),
+                        -((a.width / 2) * Math.sin(angleRad)) + ((a.height / 2) * Math.cos(angleRad))
+                        ],
+            
+                        // bot right corner
+                        [
+                        ((a.width / 2) * Math.cos(angleRad)) - ((a.height / 2) * Math.sin(angleRad)),
+                        ((a.width / 2) * Math.sin(angleRad)) + ((a.height / 2) * Math.cos(angleRad))
+                        ],
+            
+                        // top right corner
+                        [
+                        ((a.width / 2) * Math.cos(angleRad)) + ((a.height / 2) * Math.sin(angleRad)),
+                        ((a.width / 2) * Math.sin(angleRad)) - ((a.height / 2) * Math.cos(angleRad))
+                        ],
+                    
+                        // top left corner
+                        [
+                        -((a.width / 2) * Math.cos(angleRad)) + ((a.height / 2) * Math.sin(angleRad)),
+                        -((a.width / 2) * Math.sin(angleRad)) - ((a.height / 2) * Math.cos(angleRad))
+                        ]
+                    ]
+                    
+                    a.corners.sort(sortCornersX)
+                }
+    
+    
+                if (!("corners" in b)) {
+                    var angleRad = b.angle * (Math.PI/180);
+                    b.corners = [
+                        // bot left corner        
+                        [
+                        -((b.width / 2) * Math.cos(angleRad)) - ((b.height / 2) * Math.sin(angleRad)),
+                        -((b.width / 2) * Math.sin(angleRad)) + ((b.height / 2) * Math.cos(angleRad))
+                        ],
+            
+                        // bot right corner
+                        [
+                        ((b.width / 2) * Math.cos(angleRad)) - ((b.height / 2) * Math.sin(angleRad)),
+                        ((b.width / 2) * Math.sin(angleRad)) + ((b.height / 2) * Math.cos(angleRad))
+                        ],
+            
+                        // top right corner
+                        [
+                        ((b.width / 2) * Math.cos(angleRad)) + ((b.height / 2) * Math.sin(angleRad)),
+                        ((b.width / 2) * Math.sin(angleRad)) - ((b.height / 2) * Math.cos(angleRad))
+                        ],
+                    
+                        // top left corner
+                        [
+                        -((b.width / 2) * Math.cos(angleRad)) + ((b.height / 2) * Math.sin(angleRad)),
+                        -((b.width / 2) * Math.sin(angleRad)) - ((b.height / 2) * Math.cos(angleRad))
+                        ]
+                    ]
+                    
+                    b.corners.sort(sortCornersX)
+                }
+        
+    
+                function sortCornersX(a, b) {
+                    // if return is negative ... a comes first 
+                    // if return is positive ... b comes first
+                    // return is 0... nothing is changed
+                    if (a[0] < b[0]) {return -1;}
+                    if (a[0] > b[0]) {return 1;}
+                    return 0;
+                }
+        
+        
+    
+                if ((a.x + a.width/2) < (b.x + b.width/2)) { // A IS TO THE LEFT OF B
+                // if (a.x < b.x) { // A IS TO THE LEFT OF B
+    
+                    // console.log("RETURNING TRUE")
+                    // return true
+    
+                    // GETS A's platform.corner for right most corner (end of corners array) NOTE: corner array is in local space
+                    a.rightMostPlatformCornerX = a.corners[3][0] + a.x + a.width/2 // platform corners are relative to the platforms middle
+                    a.rightMostPlatformCornerY = a.corners[3][1] + a.y + a.height/2
+        
+                    // gets B's platform.corner for left most corner (start of corners array) NOTE: corner array is in local space
+                    b.leftMostPlatformCornerX = b.corners[0][0] + b.x + b.width/2 // platform corners are relative to the platforms middle
+                    b.leftMostPlatformCornerY = b.corners[0][1] + b.y + b.height/2
+        
+                    // gets corner extension for A's corner compared to B 
+                    var aCornerExtensionY = a.rightMostPlatformCornerY + (b.leftMostPlatformCornerX - a.rightMostPlatformCornerX) * Math.tan(a.angle * (Math.PI/180))
+        
+                    if (a.rightMostPlatformCornerY > b.leftMostPlatformCornerY){ // below
+                        // render a in front of b
+                        // console.log("a was to the LEFT of b and should be infront")
+                        return true;
+                    } else {return false;} // above. render b in front of a
+        
+        
+                }
+                
+                if ((a.x + a.width/2) >= (b.x + b.width/2)) { // A IS TO THE RIGHT OF B
+                // if (a.x >= b.x) { // A IS TO THE RIGHT OF B (its always doing this one)
+    
+                    // console.log("RETURNING FALSE")
+                    // return false
+    
+                    // gets A's platform.corner for left most corner (start of corners array) NOTE: corner array is in local space
+                    a.leftMostPlatformCornerX = a.corners[0][0] + a.x + a.width/2 // platform corners are relative to the platforms middle
+                    a.leftMostPlatformCornerY = a.corners[0][1] + a.y + a.height/2
+        
+                    // GETS B's platform.corner for right most corner (end of corners array) NOTE: corner array is in local space
+                    b.rightMostPlatformCornerX = b.corners[3][0] + b.x + b.width/2 // platform corners are relative to the platforms middle
+                    b.rightMostPlatformCornerY = b.corners[3][1] + b.y + b.height/2
+        
+                    var aCornerExtensionY = a.leftMostPlatformCornerY + (b.rightMostPlatformCornerX - a.leftMostPlatformCornerX) * Math.tan(a.angle * (Math.PI/180))
+        
+                    if (a.leftMostPlatformCornerY > b.rightMostPlatformCornerY){ // a is below
+                        // render a in front of b
+                        // console.log("a was to the RIGHT of b and should be infront")
+                        return true;
+                    } else {return false;} // above. render b in front of a
+    
+                }
+
+            } else {
+                console.log("didnt check: " + "(" + a.x + ", " + a.y + ") with (" + b.x + ", " + b.y + ")")
+                return false
+            }
+        } // end of shouldBeInFront
+
     }
+
 }
 
 
@@ -1523,7 +1739,7 @@ class Map {
 
         // sort and index platforms on load of map
         // platforms only need to be sorted once(given indexes once) and then the player just needs to be slotted in where they belong in the z-order of the render queue which is the map.renderedPlatforms array
-
+        // not true ^^ platform order can change depending on player position / rotation
 
 
         var infrontPlayer = []
@@ -1534,18 +1750,17 @@ class Map {
 
         this.renderedPlatforms.forEach(platform => { // Loop through RENDERED platforms (will loop through in order of index)
             
-            //change to be platform.hypotenuse that is evaled on map load
-            var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
-
+            
             // checking if platform is a wall
             // splitting walls into 2 arrays: infrontPlayer[] and behindPlayer[]. 
             // Sort rendered platforms/walls that ARENT checked(close enough to player) into the appropriate array
-
-
-
-
+            
+            
             if (platform.wall) {
 
+                //change to be platform.hypotenuse that is evaled on map load
+                var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+                
                 if ( // wall is close enough to player that it needs to be checked with player rotation. Could be behind, infront, or colliding with it
                     (platform.x + platform.width/2 + hypotenuse > player.x - 25) && // colliding with player from left
                     (platform.x + platform.width/2 - hypotenuse < player.x + 25) && // right side
@@ -1584,16 +1799,19 @@ class Map {
                             player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
                         }
 
-
+                        // these might be calculated on map save so this isnt needed
                         // GETS platform.corner x for right most corner (end of corners array) NOTE: corner array is in local space
                         platform.rightMostPlatformCornerX = platform.corners[3][0] + platform.x + platform.width/2 // platform corners are relative to the platforms middle
                         platform.rightMostPlatformCornerY = platform.corners[3][1] + platform.y + platform.height/2
 
 
                         var cornerExtensionY = platform.rightMostPlatformCornerY + (player.leftMostPlayerCornerX - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))
-                        // console.log("cornerExtensionY: " + Math.round(cornerExtensionY) + " || PlayerY: " + Math.round(player.leftMostPlayerCornerY))
+                        var cornerExtensionX = platform.rightMostPlatformCornerX + (player.leftMostPlayerCornerY - platform.rightMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180))
+                        
+                        // b = a × tan(β)
+                        // https://www.omnicalculator.com/math/right-triangle-side-angle
 
-                        if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && cornerExtensionY > player.leftMostPlayerCornerY) { // overlapping 
+                        if (cornerExtensionX > player.leftMostPlayerCornerX && cornerExtensionY > player.leftMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
                             infrontPlayer.push(platform)
                             if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
@@ -1634,8 +1852,11 @@ class Map {
                         platform.leftMostPlatformCornerY = platform.corners[0][1] + platform.y + platform.height/2
 
                         var cornerExtensionY = platform.leftMostPlatformCornerY + (player.rightMostPlayerCornerX - platform.leftMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))
+                        var cornerExtensionX = platform.leftMostPlatformCornerX + (player.rightMostPlayerCornerY - platform.leftMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180))
 
-                        if (platform.leftMostPlatformCornerX < player.rightMostPlayerCornerX && cornerExtensionY > player.rightMostPlayerCornerY) { // overlapping 
+
+
+                        if (cornerExtensionX < player.rightMostPlayerCornerX && cornerExtensionY > player.rightMostPlayerCornerY) { // overlapping 
                             // render wall in front of player
                             infrontPlayer.push(platform)
                             if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
@@ -1669,17 +1890,8 @@ class Map {
         }); // end of looping through each rendered platform
 
 
-        function sortByIndex(a, b) { // move this sorting to map loading/saving screen 
-            // if return is negative ... a comes first 
-            // if return is positive ... b comes first
-            // return is 0... nothing is changed
-            if (a.index < b.index) {return -1;}
-            if (a.index > b.index) {return 1;}
-            return 0;
-        }
 
         // this.renderQueue = this.renderedPlatforms.toSorted(sortByIndex) // sort by index of platform. UNLESS theyre already in order which is very possible. PROBABLY DONT NEED
-
 
         this.renderQueue = behindPlayer.concat(player, infrontPlayer) // combine arrays 
         // console.log(this.renderQueue)
@@ -1780,9 +1992,10 @@ class Map {
         }
 
         // PLAFORM RENDERING DEBUG TEXT
-        // ctx.fillStyle = "#FFFFFF";
-        // ctx.fillText("index: " + platform.index, 0, -40);
-        // ctx.fillText("real index: " + this.renderedPlatforms.indexOf(platform), 0, -20)
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "12px sans-serif"
+        ctx.fillText("index: " + platform.index, -15, -40);
+        ctx.fillText("renderIndex: " + this.renderedPlatforms.indexOf(platform), -15, -20)
         // ctx.fillText("angle: " + platform.angle, 0,-20);
         // ctx.fillText("position: " + platform.x + ", " + platform.y, 0 , 0)
 
@@ -1792,19 +2005,41 @@ class Map {
         
         ctx.restore(); // resets back from platform local space. player view space??
         
-        // ctx.beginPath();
-        // ctx.moveTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY)
-        // ctx.lineTo(player.x, platform.rightMostPlatformCornerY + (player.x - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)))
-        // ctx.lineTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY + (player.x - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)))
-        // ctx.closePath();
-        // ctx.stroke();
-        // ctx.fillRect(player.x, platform.leftMostPlatformCornerY + ((player.x - platform.leftMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))), 15,15)
+
+        // cornerExtensionY
+        ctx.beginPath();
+        ctx.moveTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY)
+        ctx.lineTo(player.leftMostPlayerCornerX, platform.rightMostPlatformCornerY + (player.leftMostPlayerCornerX - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)))
+        ctx.lineTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY + (player.leftMostPlayerCornerX - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)))
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillRect(player.leftMostPlayerCornerX, platform.rightMostPlatformCornerY + (player.leftMostPlayerCornerX - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180)), 15,15)
+        
+
+        // cornerExtensionX
+        ctx.beginPath();
+        ctx.moveTo(platform.rightMostPlatformCornerX, platform.rightMostPlatformCornerY)
+        ctx.lineTo(platform.rightMostPlatformCornerX + (player.leftMostPlayerCornerY - platform.rightMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180)),player.leftMostPlayerCornerY)
+        ctx.lineTo(platform.rightMostPlatformCornerX + (player.leftMostPlayerCornerY - platform.rightMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180)), platform.rightMostPlatformCornerY)
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillRect(platform.rightMostPlatformCornerX + (player.leftMostPlayerCornerY - platform.rightMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180)), player.leftMostPlayerCornerY, 15, 15)
+        
+        // platform.rightMostPlatformCornerX + (player.leftMostPlayerCornerY - platform.rightMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180))
+        // b = a × tan(β)
+
+
+        // drawing wall z-order debug points
+        ctx.fillStyle = "#FF00FF" // left and right corners
+        ctx.fillRect(platform.leftMostPlatformCornerX - 2, platform.leftMostPlatformCornerY - 2, 4, 4)
+        ctx.fillRect(platform.rightMostPlatformCornerX - 2, platform.rightMostPlatformCornerY - 2, 4, 4)
+        ctx.fillStyle = "#0000FF" // center
+        ctx.fillRect(platform.x + platform.width/2 - 2, platform.y + platform.height/2 - 2, 4, 4)
+
+        
         
         ctx.restore(); // resets back to global space
 
-        // drawing wall z-order debug points
-        // ctx.fillStyle = "#FF0000"
-        // ctx.fillRect(platform.rightMostPlatformCornerX - 2, platform.rightMostPlatformCornerY - 2, 4, 4)
 
         // ctx.fillStyle = "#0000FF"
         // ctx.fillRect(player.leftMostPlayerCornerX - 2, player.leftMostPlayerCornerY - 2, 4, 4)
