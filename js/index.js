@@ -1832,22 +1832,8 @@ class Map {
                     var verticalAxisExtensionX = platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope)
                     var axisToUse = null
                     
-                    /*
-                    // SOME OF THESE EXTENSIONS ARE NOT SNAPPED TO Player.x LIKE THE AXIS's ARE
-                    // Left Corner Extension
-                    // Horizontal (compared with player.y) light pink
-                    var leftCornerExtension_Horizontal = platform.leftMostPlatformCornerY + (platform.horizontalSlope * (player.x - (platform.leftMostPlatformCornerX)))
-                    // Vertical (compared with player.x) dark pink
-                    var leftCornerExtension_Vertical = platform.leftMostPlatformCornerX + ((player.y - (platform.leftMostPlatformCornerY)) / platform.verticalSlope)
 
-                    // Right Corner Extension
-                    // Horizontal (compared with player.y) light red
-                    var rightCornerExtension_Horizontal = platform.rightMostPlatformCornerY + (platform.horizontalSlope * (player.x - (platform.rightMostPlatformCornerX)))
-                    // Vertical (compared with player.x) dark red
-                    var rightCornerExtension_Vertical = platform.rightMostPlatformCornerX + ((player.y - (platform.rightMostPlatformCornerY)) / platform.verticalSlope)
-                    */
-
-                    // figures out which axis is more vertical
+                    // figures out which axis is needed to compare check
                     if (platform.angle >= 0) {
                         if (platform.leftMostPlatformCornerY >= platform.rightMostPlatformCornerY) { // rightMost corner is higher up
                             axisToUse = "vertical"
@@ -1926,87 +1912,6 @@ class Map {
                     }
 
 
-
-                    /*
-
-                    if (verticalAxisExtensionX < player.x) { // WALL IS TO THE LEFT
-                        
-                        // // GETS LEFT MOST PLAYER CORNER
-                        // player.leftMostPlayerCornerX = null
-                        // player.leftMostPlayerCornerY = null
-                        // if (0 <= angle && angle < 90) { // bot left
-                        //     player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
-                        //     player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
-                        // }
-                        // if (90 <= angle && angle < 180) { // bot right
-                        //     player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
-                        //     player.leftMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
-                        // }
-                        // if (180 <= angle && angle < 270) { // top right
-                        //     player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
-                        //     player.leftMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
-                        // }
-                        // if (270 <= angle && angle < 360) { // top left
-                        //     player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
-                        //     player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
-                        // }
-
-
-                        var cornerExtensionY = platform.rightMostPlatformCornerY + (player.leftMostPlayerCornerX - platform.rightMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))
-                        var cornerExtensionX = platform.rightMostPlatformCornerX + (player.leftMostPlayerCornerY - platform.rightMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180))
-                        
-
-                        if (cornerExtensionX > player.leftMostPlayerCornerX && cornerExtensionY > player.leftMostPlayerCornerY) { // overlapping 
-                            // render wall in front of player
-                            infrontPlayer.push(platform)
-                            if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
-                        } else {
-                            // render wall normally (behind player)
-                            behindPlayer.push(platform)
-                        }
-
-
-
-
-                    } else { // WALL IS TO THE RIGHT
-
-                        // GETS RIGHT MOST PLAYER CORNER
-                        // player.rightMostPlayerCornerX = null
-                        // player.rightMostPlayerCornerY = null
-                        // if (0 <= angle && angle < 90) { // top right
-                        //     player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
-                        //     player.rightMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
-                        // }
-                        // if (90 <= angle && angle < 180) { // top left
-                        //     player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
-                        //     player.rightMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
-                        // }
-                        // if (180 <= angle && angle < 270) { // bot left
-                        //     player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
-                        //     player.rightMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
-                        // }
-                        // if (270 <= angle && angle < 360) { // bot right
-                        //     player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
-                        //     player.rightMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
-                        // }
-
-
-
-                        var cornerExtensionY = platform.leftMostPlatformCornerY + (player.rightMostPlayerCornerX - platform.leftMostPlatformCornerX) * Math.tan(platform.angle * (Math.PI/180))
-                        var cornerExtensionX = platform.leftMostPlatformCornerX + (player.rightMostPlayerCornerY - platform.leftMostPlatformCornerY) * Math.tan((180-platform.angle) * (Math.PI/180))
-
-                        if (cornerExtensionX < player.rightMostPlayerCornerX && cornerExtensionY > player.rightMostPlayerCornerY) { // overlapping 
-                            // render wall in front of player
-                            infrontPlayer.push(platform)
-                            if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
-                        } else {
-                            // render wall normally (behind player)
-                            behindPlayer.push(platform)
-                        }
-                    }
-
-                    */
-
                 } else { // is a wall but not close enough to do a precise check. Sort into correct array based of index
 
                     if (platform.index > indexSplitSpot) { // platform can also be rendered infront of player
@@ -2038,9 +1943,9 @@ class Map {
     renderPlatform(platform) { // seperate function to render platforms so that it can be called at different times (ex. called after drawing player inorder to render infront)
         
         const ctx = canvasArea.ctx;
-        ctx.strokeStyle = "#000000" // for borders
+        ctx.strokeStyle = "#00000000" // for borders. add a 00 at the end to make them transparent
         ctx.lineJoin = "round"
-        ctx.lineWidth = 2
+        ctx.lineWidth = 1
         
         ctx.save();
         ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
@@ -2128,59 +2033,33 @@ class Map {
         }
 
         // PLAFORM RENDERING DEBUG TEXT
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "12px sans-serif"
-        ctx.fillText("index: " + platform.index, 0, 0);
+        // ctx.fillStyle = "#FFFFFF";
+        // ctx.font = "12px sans-serif"
+        // ctx.fillText("index: " + platform.index, 0, 0);
         // ctx.fillText("renderIndex: " + this.renderedPlatforms.indexOf(platform), 0, 0)
-        ctx.fillText("angle: " + platform.angle, 0, 20);
+        // ctx.fillText("angle: " + platform.angle, 0, 20);
         // ctx.fillText("position: " + platform.x + ", " + platform.y, 0 , 40)
-        ctx.fillText("width / height: " + platform.width + ", " + platform.height, 0 , 40)
-        ctx.fillText("slope vert: " + platform.verticalSlope, 0, 60)
-        ctx.fillText("slope horz: " + platform.horizontalSlope, 0, 80)
+        // ctx.fillText("width / height: " + platform.width + ", " + platform.height, 0 , 40)
+        // ctx.fillText("slope vert: " + platform.verticalSlope, 0, 60)
+        // ctx.fillText("slope horz: " + platform.horizontalSlope, 0, 80)
 
         
         ctx.restore(); // resets back from platform local space. player view space??
         
 
         // Centered Axis
-        ctx.fillStyle = "lime"
-        // old one that snaps to player.x not player.y
-        // ctx.fillRect(player.x, platform.y + platform.height/2 + (platform.horizontalSlope * (player.x - (platform.x + platform.width/2))), 5, 5)
-        ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope), player.y, 5, 5)
+        // ctx.fillStyle = "lime"
+        // ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope), player.y, 5, 5)
+        // ctx.fillStyle = "green"
+        // ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope), player.y, 5, 5)
+        
 
-
-        ctx.fillStyle = "green"
-        ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope), player.y, 5, 5)
-
-        /*
-        // Left Corner Extension
-        // Horizontal
-        ctx.fillStyle = "deeppink"
-        ctx.fillRect(player.x, platform.leftMostPlatformCornerY + (platform.horizontalSlope * (player.x - (platform.leftMostPlatformCornerX))), 5, 5)
-        // Vertical
-        ctx.fillStyle = "darkorchid"
-        ctx.fillRect(platform.leftMostPlatformCornerX + ((player.y - (platform.leftMostPlatformCornerY)) / platform.verticalSlope), player.y, 5, 5)
-
-
-        // Right Corner Extension
-        // Horizontal
-        ctx.fillStyle = "sandybrown"
-        ctx.fillRect(player.x, platform.rightMostPlatformCornerY + (platform.horizontalSlope * (player.x - (platform.rightMostPlatformCornerX))), 5, 5)
-        // Vertical
-        ctx.fillStyle = "red"
-        ctx.fillRect(platform.rightMostPlatformCornerX + ((player.y - (platform.rightMostPlatformCornerY)) / platform.verticalSlope), player.y, 5, 5)
-        */
-
-
-        ctx.fillStyle = "white"
-
-
-        // drawing wall z-order debug POINTS
-        ctx.fillStyle = "#FF00FF" // left and right most corners (pink)
-        ctx.fillRect(platform.leftMostPlatformCornerX - 2, platform.leftMostPlatformCornerY - 2, 4, 4)
-        ctx.fillRect(platform.rightMostPlatformCornerX - 2, platform.rightMostPlatformCornerY - 2, 4, 4)
-        ctx.fillStyle = "#0000FF" // center (blue)
-        ctx.fillRect(platform.x + platform.width/2 - 2, platform.y + platform.height/2 - 2, 4, 4)
+        // DRAWING WALL Z-ORDER DEBUG POINTS (CORNERS)
+        // ctx.fillStyle = "#FF00FF" // left and right most corners (pink)
+        // ctx.fillRect(platform.leftMostPlatformCornerX - 2, platform.leftMostPlatformCornerY - 2, 4, 4)
+        // ctx.fillRect(platform.rightMostPlatformCornerX - 2, platform.rightMostPlatformCornerY - 2, 4, 4)
+        // ctx.fillStyle = "#0000FF" // center (blue)
+        // ctx.fillRect(platform.x + platform.width/2 - 2, platform.y + platform.height/2 - 2, 4, 4)
 
         
         ctx.restore(); // resets back to global space
@@ -2412,7 +2291,7 @@ class Player {
         
         const ctx = canvasArea.ctx;
         
-        ctx.strokeStyle = "#000000" // borders
+        ctx.strokeStyle = "#00000000" // player borders. add 00 to make transparent
         ctx.lineJoin = "round"
         ctx.lineWidth = 1
 
@@ -2456,7 +2335,7 @@ class Player {
         ctx.lineTo(8, 0)
         ctx.stroke();
 
-        ctx.strokeStyle = "#000000"; // resetting
+        ctx.strokeStyle = "#00000000"; // resetting border stroke
         ctx.lineWidth = 1
 
         
