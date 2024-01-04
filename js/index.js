@@ -1,13 +1,13 @@
 document.addEventListener("deviceready", onDeviceReady, false);
 
-let airAcceleration = 4; // the sharpness your allowed to turn at
-let maxVelocity = 1.12; // basically the rate at which speed is gained / lost. wishDir is scaled to this magnitude
-let gravity = 0.05;
+const airAcceleration = 4; // the sharpness your allowed to turn at
+const maxVelocity = 1.12; // basically the rate at which speed is gained / lost. wishDir is scaled to this magnitude
+const gravity = 0.05;
 let prevDateNow;
 let dt = 1;
 
-var midX = 0;
-var midY = 0;
+let midX = 0;
+let midY = 0;
 
 function onDeviceReady() { // Called on page load in HMTL
     document.querySelector("body").onresize = function() {canvasArea.resize()};
@@ -32,7 +32,7 @@ function onDeviceReady() { // Called on page load in HMTL
 }
 
 
-var canvasArea = { //Canvas Object
+const canvasArea = { //Canvas Object
     canvas : document.createElement("canvas"),
     
 
@@ -112,16 +112,16 @@ var canvasArea = { //Canvas Object
            return a[0] == b[0] ? a[1] - b[1] : a[0] - b[0];
         });
      
-        var lower = [];
-        for (var i = 0; i < points.length; i++) {
+        const lower = [];
+        for (let i = 0; i < points.length; i++) {
            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], points[i]) <= 0) {
               lower.pop();
            }
            lower.push(points[i]);
         }
      
-        var upper = [];
-        for (var i = points.length - 1; i >= 0; i--) {
+        const upper = [];
+        for (let i = points.length - 1; i >= 0; i--) {
            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], points[i]) <= 0) {
               upper.pop();
            }
@@ -135,91 +135,7 @@ var canvasArea = { //Canvas Object
 }
 
 
-class SliderUI {
-    confirmed = true;
-
-    constructor(x, y, width, min, max, label, variable, func) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.min = min;
-        this.max = max;
-        this.label = label;
-        this.value = variable;
-        this.variableToControl = String(variable);
-        this.func = func;
-        this.sliderX = x + width / ((max - min)/this.value);
-    }
-
-    updateState(value) { // updates the button when its value is changed by external source
-        this.value = value;
-        this.sliderX = this.x + this.width / ((this.max - this.min)/this.value);
-    }
-
-
-    render() {
-        canvasArea.ctx.strokeStyle = "#BBBBBB";
-        canvasArea.ctx.lineWidth = 10;
-        canvasArea.ctx.fillStyle = "#FFFFFF";
-        
-        canvasArea.ctx.beginPath(); // Slider Line
-        canvasArea.ctx.moveTo(this.x, this.y)
-        canvasArea.ctx.lineTo(this.x + this.width, this.y)
-        canvasArea.ctx.stroke();
-
-        // canvasArea.ctx.save();
-        // canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
-        // canvasArea.ctx.shadowBlur = 10;
-        // canvasArea.ctx.fill();
-        // canvasArea.ctx.restore();
-
-        canvasArea.ctx.beginPath(); // Slider Handle
-        canvasArea.ctx.arc(this.sliderX, this.y, 15, 0, 2 * Math.PI);
-        canvasArea.ctx.fill();
-
-        canvasArea.ctx.font = "20px sans-serif";
-        canvasArea.ctx.fillStyle = "white";
-        canvasArea.ctx.fillText(this.label + ": " + this.value, this.x, this.y - 30)
-    }
-
-    update() {
-        if (touchHandler.dragging) { // User is touching the screen
-            if (Math.abs(touchHandler.touchX - this.sliderX) < 30 && Math.abs(touchHandler.touchY - this.y) < 30) {
-                
-                if (touchHandler.touchX > this.x && touchHandler.touchX < this.x + this.width) {
-
-                    this.sliderX = touchHandler.touchX
-                }
-
-                // MAP TO RANGE: https://stackoverflow.com/questions/10756313/javascript-jquery-map-a-range-of-numbers-to-another-range-of-numbers
-                // (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-                // inmin = this.x
-                // inmax = this.x + this.width
-                // outmin = this.min
-                // outmax = this.max
-
-                this.value = (this.sliderX - this.x) * (this.max - this.min) / (this.width) + this.min;
-                this.value = Math.round(this.value * 10) / 10;
-
-                this.confirmed = false;
-            }
-        } else { // if not dragging (testing for a touch end on slider)
-            if (!this.confirmed) { // and if real values havent been updated
-
-                // map snapped value to pixels along slider. snapping the position of the visual slider
-                this.sliderX = (this.value - this.min) * (this.x + this.width - this.x) / (this.max - this.min) + this.x;
-
-                this.func(); // run the functions built into the slider
-                this.confirmed = true;
-            }
-        }
-    }
-
-    resize() {}
-}
-
-
-var UserInterface = {
+const UserInterface = {
     
     gamestate : 1,
     // 1: main menu
@@ -417,16 +333,16 @@ var UserInterface = {
 
         btn_load_map = new Button("200", "180", 400, 100, "Load A Map", 0, function() {
             
-            var input = document.createElement("input");
+            const input = document.createElement("input");
             input.type = "file";
             input.accept = ".json";
             document.body.appendChild(input);
             input.click();
             
             input.addEventListener('change', function () {
-                let file = input.files[0]
+                const file = input.files[0]
                 
-                let reader = new FileReader();
+                const reader = new FileReader();
                 reader.onload = (e) => {
                     // console.log(e.target.result)
                     MapEditor.loadedMap = JSON.parse(e.target.result)
@@ -442,7 +358,7 @@ var UserInterface = {
 
         btn_exit_edit = new Button("20", "20", 150, 50, "Save and Exit", 0, function() {
 
-            var map = MapEditor.loadedMap;
+            const map = MapEditor.loadedMap;
 
             downloadMap = {};
             downloadMap.playerStart = {
@@ -492,16 +408,16 @@ var UserInterface = {
             console.log(JSON.stringify(downloadMap.platforms))
 
 
-            var savemap = confirm("Save Map?");
+            const savemap = confirm("Save Map?");
             if (savemap) {
                 // RE-ENABLE TO DOWNLOAD MAPS ON EXIT (SHOULD PROMT IF WANT TO SAVE and NAME MAP)
                 downloadObjectAsJson(downloadMap, "custom_map");
             }
 
             function downloadObjectAsJson(exportObj, exportName) { // https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
-                var exportName = prompt("Enter Map Name");
-                var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
-                var downloadAnchorNode = document.createElement('a');
+                exportName = prompt("Enter Map Name");
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+                const downloadAnchorNode = document.createElement('a');
                 downloadAnchorNode.setAttribute("href", dataStr);
                 downloadAnchorNode.setAttribute("download", exportName + ".json");
                 document.body.appendChild(downloadAnchorNode); // required for firefox
@@ -517,7 +433,7 @@ var UserInterface = {
         
         btn_add_platform = new Button("canvasArea.canvas.width - 200", "100", 150, 80, "New Platform", 0, function() {
             
-            var newPlatform = {
+            const newPlatform = {
                 "x": Math.round(-MapEditor.screenX + canvasArea.canvas.width/2),
                 "y": Math.round(-MapEditor.screenY + canvasArea.canvas.height/2),
                 "width": 100,
@@ -582,18 +498,18 @@ var UserInterface = {
         btn_custom_maps = new Button("canvasArea.canvas.width - 200", 50, 150, 80, "Custom Maps", 0, function() { 
             
             
-            var input = document.createElement("input");
+            const input = document.createElement("input");
             input.type = "file";
             input.accept = ".json";
             document.body.appendChild(input);
             input.click();
             
             input.addEventListener('change', function () {
-                let file = input.files[0]
+                const file = input.files[0]
                 
-                let reader = new FileReader();
+                const reader = new FileReader();
                 reader.onload = (e) => {
-                    let mapObject = JSON.parse(e.target.result);
+                    const mapObject = JSON.parse(e.target.result);
                     mapObject.name = String(input.files[0].name.split(".")[0]) // for getting the name of a custom map
                     map = new Map(mapObject);
                     UserInterface.gamestate = 5;
@@ -700,12 +616,12 @@ var UserInterface = {
     },
 
     secondsToMinutes : function(milliseconds) {
-        let seconds = milliseconds / 1000
+        const seconds = milliseconds / 1000
         // seconds = Math.round(seconds * 1000) / 1000
 
-        let minutes = Math.floor(seconds / 60);
+        const minutes = Math.floor(seconds / 60);
         let extraSeconds = seconds % 60;
-        extraSeconds = Math.round(extraSeconds * 1000) / 1000
+        extraSeconds = Math.round((seconds % 60) * 1000) / 1000
 
         // minutes = minutes < 10 ? "0" + minutes : minutes; // adds a zero before minutes number if less than 10 mins
         extraSeconds = extraSeconds < 10 ? "0" + extraSeconds : extraSeconds;
@@ -714,9 +630,9 @@ var UserInterface = {
 
     touchReleased : function(x,y) { // TRIGGERED BY InputHandler
         
-        var clickedPlatform = false;
-        var clickedButton = false;
-        var clickedPlayer = false;
+        let clickedPlatform = false;
+        let clickedButton = false;
+        let clickedPlayer = false;
 
         // TEST IF TOUCHING WITHIN PLATFORM EDIT PANEL ON THE RIGHT
 
@@ -764,7 +680,7 @@ var UserInterface = {
                 x >= MapEditor.loadedMap.playerStart.x + MapEditor.screenX - 16 && x <= MapEditor.loadedMap.playerStart.x + 16 + MapEditor.screenX &&
                 y >= MapEditor.loadedMap.playerStart.y + MapEditor.screenY - 16 && y <= MapEditor.loadedMap.playerStart.y + 16 + MapEditor.screenY
             ) {
-                MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own var
+                MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own let
                 clickedPlayer = true;
             }
 
@@ -779,7 +695,7 @@ var UserInterface = {
 
     },
 
-    render : function(dt) {
+    render : function() {
 
         this.renderedButtons.forEach(button => { // LOOP RENDERED BUTTONS AND RUN THEIR .render()
             button.render();
@@ -794,7 +710,7 @@ var UserInterface = {
         if (this.gamestate == 6) { // In Level
 
             if (this.debugText == 1) { // DRAWING DEBUG TEXT
-                var textX = canvasArea.canvas.width * 0.18; 
+                const textX = canvasArea.canvas.width * 0.18; 
                 canvasArea.ctx.font = "15px sans-serif";
                 canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
     
@@ -907,7 +823,207 @@ var UserInterface = {
 }
 
 
-var MapEditor = {
+class Button {
+    constructor(x, y, width, height, image, image_pressed, togglable, func) {
+        this.x = eval(x);
+        this.y = eval(y);
+        this.savedX = x;
+        this.savedY = y;
+
+        this.width = width; // should take from image eventually
+        this.height = height;
+        this.image = image
+        this.togglable = togglable;
+        this.func = func;
+
+        this.toggle = 0
+        if (this.togglable == 1) {this.func(true)} // runs the pressed function with the "init" tag to sync button pressed or released
+    }
+
+    render() {
+        canvasArea.ctx.fillStyle = "#FFFFFF";
+
+        if (this.togglable == 1) {
+            if (this.toggle == 1) {canvasArea.ctx.fillStyle = "#a3a3a3";}
+        }
+
+        canvasArea.ctx.strokeStyle = "#BBBBBB";
+        canvasArea.ctx.lineWidth = 6;
+        canvasArea.ctx.beginPath();
+
+        canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
+
+        canvasArea.ctx.save();
+        canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
+        canvasArea.ctx.shadowBlur = 10;
+        canvasArea.ctx.fill();
+        canvasArea.ctx.restore();
+
+        canvasArea.ctx.stroke();
+
+
+        // this should be drawing an image not text. text is placholder
+        canvasArea.ctx.font = "15px sans-serif";
+        canvasArea.ctx.fillStyle = "black";
+        canvasArea.ctx.fillText(this.image, this.x + 10, this.y + this.height / 2)
+    }
+
+    pressed() {
+        this.func();
+    }
+
+    resize() {
+        this.x = eval(this.savedX)
+        this.y = eval(this.savedY)
+        // console.log("evalled: " + this.savedX)
+        // console.log("button position re-evaluated")
+    }
+}
+
+
+class ToggleButton {
+    constructor(x, y, width, height, image, image_pressed, togglable, func) {
+        this.x = eval(x);
+        this.y = eval(y);
+        this.savedX = x;
+        this.savedY = y;
+
+        this.width = width; // should take from image eventually
+        this.height = height;
+        this.image = image
+        this.togglable = togglable;
+        this.func = func;
+
+        this.toggle = 0
+        if (this.togglable == 1) {this.func(true)} // runs the pressed function with the "init" tag to sync button pressed or released
+    }
+
+    render() {
+        canvasArea.ctx.fillStyle = "#FFFFFF";
+
+        if (this.togglable == 1) {
+            if (this.toggle == 1) {canvasArea.ctx.fillStyle = "#a3a3a3";}
+        }
+
+        canvasArea.ctx.strokeStyle = "#BBBBBB";
+        canvasArea.ctx.lineWidth = 6;
+        canvasArea.ctx.beginPath();
+
+        canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
+
+        canvasArea.ctx.save();
+        canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
+        canvasArea.ctx.shadowBlur = 10;
+        canvasArea.ctx.fill();
+        canvasArea.ctx.restore();
+
+        canvasArea.ctx.stroke();
+
+
+        // this should be drawing an image not text. text is placholder
+        canvasArea.ctx.font = "15px sans-serif";
+        canvasArea.ctx.fillStyle = "black";
+        canvasArea.ctx.fillText(this.image, this.x + 10, this.y + this.height / 2)
+    }
+
+    pressed() {
+        this.func();
+    }
+
+    resize() {
+        this.x = eval(this.savedX)
+        this.y = eval(this.savedY)
+        // console.log("evalled: " + this.savedX)
+        // console.log("button position re-evaluated")
+    }
+}
+
+
+class SliderUI {
+    confirmed = true;
+
+    constructor(x, y, width, min, max, label, variable, func) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.min = min;
+        this.max = max;
+        this.label = label;
+        this.value = variable;
+        this.variableToControl = String(variable);
+        this.func = func;
+        this.sliderX = x + width / ((max - min)/this.value);
+    }
+
+    updateState(value) { // updates the button when its value is changed by external source
+        this.value = value;
+        this.sliderX = this.x + this.width / ((this.max - this.min)/this.value);
+    }
+
+
+    render() {
+        canvasArea.ctx.strokeStyle = "#BBBBBB";
+        canvasArea.ctx.lineWidth = 10;
+        canvasArea.ctx.fillStyle = "#FFFFFF";
+        
+        canvasArea.ctx.beginPath(); // Slider Line
+        canvasArea.ctx.moveTo(this.x, this.y)
+        canvasArea.ctx.lineTo(this.x + this.width, this.y)
+        canvasArea.ctx.stroke();
+
+        // canvasArea.ctx.save();
+        // canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
+        // canvasArea.ctx.shadowBlur = 10;
+        // canvasArea.ctx.fill();
+        // canvasArea.ctx.restore();
+
+        canvasArea.ctx.beginPath(); // Slider Handle
+        canvasArea.ctx.arc(this.sliderX, this.y, 15, 0, 2 * Math.PI);
+        canvasArea.ctx.fill();
+
+        canvasArea.ctx.font = "20px sans-serif";
+        canvasArea.ctx.fillStyle = "white";
+        canvasArea.ctx.fillText(this.label + ": " + this.value, this.x, this.y - 30)
+    }
+
+    update() {
+        if (touchHandler.dragging) { // User is touching the screen
+            if (Math.abs(touchHandler.touchX - this.sliderX) < 30 && Math.abs(touchHandler.touchY - this.y) < 30) {
+                
+                if (touchHandler.touchX > this.x && touchHandler.touchX < this.x + this.width) {
+
+                    this.sliderX = touchHandler.touchX
+                }
+
+                // MAP TO RANGE: https://stackoverflow.com/questions/10756313/javascript-jquery-map-a-range-of-numbers-to-another-range-of-numbers
+                // (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+                // inmin = this.x
+                // inmax = this.x + this.width
+                // outmin = this.min
+                // outmax = this.max
+
+                this.value = (this.sliderX - this.x) * (this.max - this.min) / (this.width) + this.min;
+                this.value = Math.round(this.value * 10) / 10;
+
+                this.confirmed = false;
+            }
+        } else { // if not dragging (testing for a touch end on slider)
+            if (!this.confirmed) { // and if real values havent been updated
+
+                // map snapped value to pixels along slider. snapping the position of the visual slider
+                this.sliderX = (this.value - this.min) * (this.x + this.width - this.x) / (this.max - this.min) + this.x;
+
+                this.func(); // run the functions built into the slider
+                this.confirmed = true;
+            }
+        }
+    }
+
+    resize() {}
+}
+
+
+const MapEditor = {
     editorState : 0, // 0 = map select screen, 1 = main map edit screen, 2 = platform edit menu,
     loadedMap : null,
     scrollX_vel : 0, // for smooth scrolling 
@@ -922,7 +1038,7 @@ var MapEditor = {
     render : function() {
 
         if (this.loadedMap !== null) { // IF MAP IS LOADED RENDER IT
-            var ctx = canvasArea.ctx;
+            const ctx = canvasArea.ctx;
             ctx.save() // moving to screenx and screeny
             ctx.translate(this.screenX, this.screenY);
 
@@ -1051,7 +1167,7 @@ var MapEditor = {
 
 
             // GENERAL MAP EDITOR DEBUG TEXT
-            var textX = 200;
+            const textX = 200;
             ctx.fillStyle = "#FFFFFF";
             ctx.fillText("screenX: " + this.screenX, textX, 60);
             ctx.fillText("touchX: " + Math.round(touchHandler.touchX - this.screenX), textX, 80);
@@ -1104,7 +1220,7 @@ var MapEditor = {
             this.renderedPlatforms = [];
 
             this.loadedMap.platforms.forEach(platform => { // Loop through platforms
-                var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+                const hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
 
 
                 if (
@@ -1164,7 +1280,7 @@ var MapEditor = {
                     // swap them in the array
                     console.log("SWAPED.  i=" + i + "  compareIndex=" + compareIndex + "  (" + platforms[i].x + ", " + platforms[i].y + ") with (" + platforms[i+compareIndex].x + ", " + platforms[i+compareIndex].y + ")")
 
-                    var temp = platforms[i]
+                    const temp = platforms[i]
                     platforms[i] = platforms[i+compareIndex]
                     platforms[i+compareIndex] = temp 
                 } else {
@@ -1187,11 +1303,11 @@ var MapEditor = {
 
 
             // only sort/swap if platforms could be overlapping each other.
-            var hypotenuse_a = Math.sqrt(a.width * a.width + a.height * a.height)/2
-            var hypotenuse_b = Math.sqrt(b.width * b.width + b.height * b.height)/2
+            const hypotenuse_a = Math.sqrt(a.width * a.width + a.height * a.height)/2
+            const hypotenuse_b = Math.sqrt(b.width * b.width + b.height * b.height)/2
 
-            var adjustedHeight_a = a.wall ? MapEditor.loadedMap.style.wallHeight : 0 // for adding height to a if its a wall
-            var adjustedHeight_b = b.wall ? MapEditor.loadedMap.style.wallHeight : 0 // for adding height to b if its a wall
+            const adjustedHeight_a = a.wall ? MapEditor.loadedMap.style.wallHeight : 0 // for adding height to a if its a wall
+            const adjustedHeight_b = b.wall ? MapEditor.loadedMap.style.wallHeight : 0 // for adding height to b if its a wall
 
             if (
                     (a.x + a.width/2 + hypotenuse_a > b.x + b.width/2 - hypotenuse_b) && // a colliding with b from left side
@@ -1202,7 +1318,7 @@ var MapEditor = {
                 
                 // corners will be added/sorted after first loop. check if they are already added.
                 if (!("corners" in a)) {
-                    var angleRad = a.angle * (Math.PI/180);
+                    const angleRad = a.angle * (Math.PI/180);
                     a.corners = [
                         // bot left corner        
                         [
@@ -1234,7 +1350,7 @@ var MapEditor = {
     
     
                 if (!("corners" in b)) {
-                    var angleRad = b.angle * (Math.PI/180);
+                    const angleRad = b.angle * (Math.PI/180);
                     b.corners = [
                         // bot left corner        
                         [
@@ -1291,7 +1407,7 @@ var MapEditor = {
                     b.leftMostPlatformCornerY = b.corners[0][1] + b.y + b.height/2
         
                     // gets corner extension for A's corner compared to B 
-                    var aCornerExtensionY = a.rightMostPlatformCornerY + (b.leftMostPlatformCornerX - a.rightMostPlatformCornerX) * Math.tan(a.angle * (Math.PI/180))
+                    const aCornerExtensionY = a.rightMostPlatformCornerY + (b.leftMostPlatformCornerX - a.rightMostPlatformCornerX) * Math.tan(a.angle * (Math.PI/180))
         
                     if (a.rightMostPlatformCornerY > b.leftMostPlatformCornerY){ // below
                         // render a in front of b
@@ -1316,7 +1432,7 @@ var MapEditor = {
                     b.rightMostPlatformCornerX = b.corners[3][0] + b.x + b.width/2 // platform corners are relative to the platforms middle
                     b.rightMostPlatformCornerY = b.corners[3][1] + b.y + b.height/2
         
-                    var aCornerExtensionY = a.leftMostPlatformCornerY + (b.rightMostPlatformCornerX - a.leftMostPlatformCornerX) * Math.tan(a.angle * (Math.PI/180))
+                    const aCornerExtensionY = a.leftMostPlatformCornerY + (b.rightMostPlatformCornerX - a.leftMostPlatformCornerX) * Math.tan(a.angle * (Math.PI/180))
         
                     if (a.leftMostPlatformCornerY > b.rightMostPlatformCornerY){ // a is below
                         // render a in front of b
@@ -1337,7 +1453,7 @@ var MapEditor = {
 }
 
 
-var AudioHandler = {
+const AudioHandler = {
     successAudio : document.getElementById("successAudio"),
     splashAudio : document.getElementById("splashAudio"),
     jumpAudio : document.getElementById("jumpAudio"),
@@ -1349,64 +1465,6 @@ var AudioHandler = {
     success : function() {this.successAudio.play()},
     splash : function() {this.splashAudio.play()},
     jump : function() {this.jumpAudio.play()},
-}
-
-
-class Button {
-    constructor(x, y, width, height, image, togglable, func) {
-        this.x = eval(x);
-        this.y = eval(y);
-        this.savedX = x;
-        this.savedY = y;
-
-        this.width = width;
-        this.height = height;
-        this.image = image
-        this.togglable = togglable;
-        this.func = func;
-
-        this.toggle = 0
-        if (this.togglable == 1) {this.func(true)} // runs the pressed function with the "init" tag to sync button pressed or released
-    }
-
-    render() {
-        canvasArea.ctx.fillStyle = "#FFFFFF";
-
-        if (this.togglable == 1) {
-            if (this.toggle == 1) {canvasArea.ctx.fillStyle = "#a3a3a3";}
-        }
-
-        canvasArea.ctx.strokeStyle = "#BBBBBB";
-        canvasArea.ctx.lineWidth = 6;
-        canvasArea.ctx.beginPath();
-
-        canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
-
-        canvasArea.ctx.save();
-        canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
-        canvasArea.ctx.shadowBlur = 10;
-        canvasArea.ctx.fill();
-        canvasArea.ctx.restore();
-
-        canvasArea.ctx.stroke();
-
-
-        // this should be drawing an image not text. text is placholder
-        canvasArea.ctx.font = "15px sans-serif";
-        canvasArea.ctx.fillStyle = "black";
-        canvasArea.ctx.fillText(this.image, this.x + 10, this.y + this.height / 2)
-    }
-
-    pressed() {
-        this.func();
-    }
-
-    resize() {
-        this.x = eval(this.savedX)
-        this.y = eval(this.savedY)
-        // console.log("evalled: " + this.savedX)
-        // console.log("button position re-evaluated")
-    }
 }
 
 
@@ -1428,7 +1486,7 @@ class Map {
 
     calculateShadedColor(sideNormalVector, color) {
 
-        var darkness = 180 - (sideNormalVector.angleDifference(map.style.lightAngleVector) * (180/Math.PI));
+        let darkness = 180 - (sideNormalVector.angleDifference(map.style.lightAngleVector) * (180/Math.PI));
     
         // MAP TO RANGE: https://stackoverflow.com/questions/10756313/javascript-jquery-map-a-range-of-numbers-to-another-range-of-numbers
         // (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
@@ -1440,7 +1498,7 @@ class Map {
     // USED TO BRIGHTEN AND DARKEN COLORS. p = percent to brighten/darken. c = color in rgba
     // https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
     RGB_Linear_Shade(p,c) {
-        var i=parseInt,r=Math.round,[a,b,c,d]=c.split(","),P=p<0,t=P?0:255*p,P=P?1+p:1-p;
+        var i=parseInt,r=Math.round,[a,b,c,d]=c.split(","),P=p<0,t=P?0:255*p,P=P?1+p:1-p; // not sure why i needs to be decalared as "var" here instead of "let"
         return"rgb"+(d?"a(":"(")+r(i(a[3]=="a"?a.slice(5):a.slice(4))*P+t)+","+r(i(b)*P+t)+","+r(i(c)*P+t)+(d?","+d:")");
     }
 
@@ -1462,13 +1520,13 @@ class Map {
             // return map;
 
 
-            // let mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
+            // const mapURL = "https://cdn.jsdelivr.net/gh/tol-uno/Pocket-Hop@main/assets/maps/" + name + ".json"
             // OLD LOCAL STORAGE
-            let mapURL = "assets/maps/" + name + ".json";
+            const mapURL = "assets/maps/" + name + ".json";
             // could eventually be "pockethop.com/maps/original.json"
 
             try {
-                let response = await fetch(mapURL);
+                const response = await fetch(mapURL);
                 return await response.json();
             } catch (error) {
                 console.log(error);
@@ -1489,17 +1547,17 @@ class Map {
             }
 
 
-            var playerStart = jsonData.playerStart; // 3 temporary vars that get combined into mapData and pushed out of async function
-            var platforms = [];
-            var style = jsonData.style;
-            var checkpoints = jsonData.checkpoints; // returns an object
+            const playerStart = jsonData.playerStart; // 3 temporary lets that get combined into mapData and pushed out of async function
+            const platforms = [];
+            const style = jsonData.style;
+            const checkpoints = jsonData.checkpoints; // returns an object
 
 
             jsonData.platforms.forEach(platform => { // LOOP THROUGH DATA AND ADD EACH PLATFORM TO AN ARRAY
                 platforms.push(platform);
             });
 
-            var mapData = [playerStart, platforms, style, checkpoints]; // all the data to be sent out from this async function (platforms, player start, end zone)
+            const mapData = [playerStart, platforms, style, checkpoints]; // all the data to be sent out from this async function (platforms, player start, end zone)
 
             return mapData;
         }
@@ -1514,21 +1572,20 @@ class Map {
 
             // Calculate lighting and shadows for each platform and the endzone
             this.style.lightAngleVector =  new Vector(Math.cos(this.style.lightAngle * (Math.PI/180)), Math.sin(this.style.lightAngle * (Math.PI/180)))
-            var shadowX = this.style.lightAngleVector.x * this.style.shadowLength;
-            var shadowY = this.style.lightAngleVector.y * this.style.shadowLength;
+            const shadowX = this.style.lightAngleVector.x * this.style.shadowLength;
+            const shadowY = this.style.lightAngleVector.y * this.style.shadowLength;
 
-            var platformIndex = 0 // set this so that it is z-order
+            let platformIndex = 0 // set this so that it is z-order
             this.platforms.forEach(platform => { // CALCULATE PLATFORMS COLORS and SHADOW POLYGON
 
                 // Setting the colors for platforms, endzones, and walls
-                var colorToUse = this.style.platformSideColor;
+                let colorToUse = this.style.platformSideColor;
                 if(platform.endzone) {
                     colorToUse = this.style.endZoneSideColor;
                     this.endZone = platform;
                 }
                 if(platform.wall) {
                     colorToUse = this.style.wallSideColor;
-                    // this.platforms.splice(this.platforms.indexOf(platform), 1) // remove from platforms array
                     this.walls.push(platform);
                 }
 
@@ -1545,8 +1602,8 @@ class Map {
                 platform.sideColor3 = this.calculateShadedColor(platform.side3Vec, colorToUse)
 
                 // SHADOW POLYGON
-                var angleRad = platform.angle * (Math.PI/180);
-                var wallShadowMultiplier = platform.wall ? (this.style.wallHeight + this.style.platformHeight) / this.style.platformHeight : 1 // makes sure shadows are longer for taller walls
+                const angleRad = platform.angle * (Math.PI/180);
+                const wallShadowMultiplier = platform.wall ? (this.style.wallHeight + this.style.platformHeight) / this.style.platformHeight : 1 // makes sure shadows are longer for taller walls
 
                 platform.shadowPoints = [ // ALL THE POSSIBLE POINTS TO INPUT IN CONVEX HULL FUNCTION
                 
@@ -1590,13 +1647,13 @@ class Map {
                     [
                     ((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
                     ((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
-                ],
+                    ],
 
-                // top left SHADOW
-                [
-                    -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
-                    -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
-                ],
+                    // top left SHADOW
+                    [
+                        -((platform.width / 2) * Math.cos(angleRad)) + ((platform.height / 2) * Math.sin(angleRad)) + shadowX * wallShadowMultiplier,
+                        -((platform.width / 2) * Math.sin(angleRad)) - ((platform.height / 2) * Math.cos(angleRad)) + this.style.platformHeight + shadowY * wallShadowMultiplier
+                    ],
                 
             ]; // end of shadowPoints array
             
@@ -1610,8 +1667,8 @@ class Map {
 
             if (platform.wall) // add wall's shape to behindWallClip (for drawing player outline behind walls)
             {
-                    // corners + wall height points need to be "concated" as serperate variable otherwise they dont stay as points
-                    var upperCorners = [
+                    // corners + wall height points need to be "concated" as serperate letiable otherwise they dont stay as points
+                    const upperCorners = [
                         [
                             platform.corners[0][0],
                             platform.corners[0][1] - this.style.wallHeight
@@ -1630,7 +1687,7 @@ class Map {
                         ],
                     ] 
 
-                    var behindWallClipPoints = platform.corners.concat(upperCorners)
+                    let behindWallClipPoints = platform.corners.concat(upperCorners)
             
                     behindWallClipPoints = canvasArea.convexHull(behindWallClipPoints)
 
@@ -1729,14 +1786,16 @@ class Map {
         this.wallsToCheck = [];
 
         this.platforms.forEach(platform => { // Loop through ALL platforms to get renderedPlatforms
-            var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
-            var adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
+            const hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+            const adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
+            const wallShadowMultiplier = platform.wall ? (this.style.wallHeight + this.style.platformHeight) / this.style.platformHeight : 1 // makes sure shadows are longer for taller walls
+
 
             if (
-                (platform.x + platform.width/2 + hypotenuse + this.style.shadowLength > player.x - midX) && // coming into frame on left side
-                (platform.x + platform.width/2 - hypotenuse - this.style.shadowLength < player.x + midX) && // right side
-                (platform.y + platform.height/2 + hypotenuse + this.style.shadowLength + this.style.platformHeight > player.y - midY) && // top side
-                (platform.y + platform.height/2 - hypotenuse - this.style.shadowLength - adjustedHeight < player.y + midY) // bottom side
+                (platform.x + platform.width/2 + hypotenuse + (this.style.shadowLength * wallShadowMultiplier) > player.x - midX) && // coming into frame on left side
+                (platform.x + platform.width/2 - hypotenuse - (this.style.shadowLength * wallShadowMultiplier) < player.x + midX) && // right side
+                (platform.y + platform.height/2 + hypotenuse + (this.style.shadowLength * wallShadowMultiplier) + this.style.platformHeight > player.y - midY) && // top side
+                (platform.y + platform.height/2 - hypotenuse - (this.style.shadowLength * wallShadowMultiplier) - adjustedHeight < player.y + midY) // bottom side
             ) {
                 this.renderedPlatforms.push(platform); // ADD platform to renderedPlatforms
             }
@@ -1750,9 +1809,9 @@ class Map {
         // not true ^^ platform order can change depending on player position / rotation
 
 
-        var infrontPlayer = []
-        var behindPlayer = []
-        var indexSplitSpot = 9999 // if it stays 9999 all platforms will be rendered behind player. Kinda acts as the index of the player
+        const infrontPlayer = []
+        const behindPlayer = []
+        let indexSplitSpot = 9999 // if it stays 9999 all platforms will be rendered behind player. Kinda acts as the index of the player
 
         
 
@@ -1767,7 +1826,7 @@ class Map {
             if (platform.wall) {
 
                 //change to be platform.hypotenuse that is evaled on map load
-                var hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
+                const hypotenuse = Math.sqrt(platform.width * platform.width + platform.height * platform.height)/2
                 
                 if ( // wall is close enough to player that it needs to be checked with player rotation. Could be behind, infront, or colliding with it
                     (platform.x + platform.width/2 + hypotenuse > player.x - 25) && // colliding with player from left
@@ -1779,8 +1838,8 @@ class Map {
                     this.wallsToCheck.push(platform) // for checking if player is colliding with walls in player.updatePos()
 
                     // convert player angle and get radian version
-                    let angle = player.lookAngle.getAngle();
-                    let angleRad = angle * (Math.PI/180);
+                    const angle = player.lookAngle.getAngle();
+                    const angleRad = angle * (Math.PI/180);
                     
 
                     // GET PLAYERS LEFTMOST AND RIGHT MOST CORNERS
@@ -1827,10 +1886,10 @@ class Map {
                     
 
                     // wall slopes / extensions of axis. Light is horizontal. Dark is vertical
-                    // var horizontalAxisExtensionY = platform.y + platform.height/2 + (platform.horizontalSlope * (player.x - (platform.x + platform.width/2)))
-                    var horizontalAxisExtensionX = platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope)
-                    var verticalAxisExtensionX = platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope)
-                    var axisToUse = null
+                    // const horizontalAxisExtensionY = platform.y + platform.height/2 + (platform.horizontalSlope * (player.x - (platform.x + platform.width/2)))
+                    const horizontalAxisExtensionX = platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope)
+                    const verticalAxisExtensionX = platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope)
+                    let axisToUse = null
                     
 
                     // figures out which axis is needed to compare check
@@ -1950,7 +2009,7 @@ class Map {
         ctx.save();
         ctx.translate(-player.x + midX, -player.y + midY); // move canvas when drawing platforms then restore. midX is center of canvas width
 
-        var adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
+        const adjustedHeight = platform.wall ? this.style.wallHeight : 0 // for adding height to walls
 
         // DRAW PLATFORM TOP
         ctx.save(); // ROTATING 
@@ -1983,7 +2042,7 @@ class Map {
         ctx.save();
         ctx.translate(platform.x + platform.width/2, platform.y + platform.height/2);
 
-        var angleRad = platform.angle * (Math.PI/180);
+        const angleRad = platform.angle * (Math.PI/180);
         
 
         // platform angles should only be max of 90 and -90 in mapData
@@ -2082,7 +2141,7 @@ class Map {
 
         ctx.fillStyle = this.style.shadowColor;
         // ctx.fillStyle = "green";
-        // var blurValue = player.jumpValue / 16 + 1
+        // const blurValue = player.jumpValue / 16 + 1
         // ctx.filter = "blur(" + blurValue + "px)";
         ctx.fillRect(-15, -15, 30, 30)
         // ctx.filter = "none";
@@ -2142,7 +2201,7 @@ class InputHandler {
 
 
     constructor(){
-        var scrolled = false; // if scrolled==true UserInterface.touchReleased isnt sent
+        let scrolled = false; // if scrolled==true UserInterface.touchReleased isnt sent
 
         window.addEventListener("touchstart", e => {
 
@@ -2311,7 +2370,7 @@ class Player {
         ctx.rotate(this.lookAngle.getAngle() * Math.PI/180)
 
         ctx.fillStyle = map.style.shadowColor;
-        // var blurValue = player.jumpValue / 16 + 1
+        // const blurValue = player.jumpValue / 16 + 1
         // ctx.filter = "blur(" + blurValue + "px)";
         ctx.fillRect(-15, -15, 30, 30)
         // ctx.filter = "none";
@@ -2352,8 +2411,8 @@ class Player {
         // SIDES OF PLAYER
         ctx.save();
 
-        var angleRad = this.lookAngle.getAngle() * (Math.PI/180);
-        var loopedAngle = this.lookAngle.getAngle();
+        const angleRad = this.lookAngle.getAngle() * (Math.PI/180);
+        const loopedAngle = this.lookAngle.getAngle();
 
 
         // GETTING CORNERS OF ROTATED RECTANGLE
@@ -2361,7 +2420,7 @@ class Player {
 
         if (loopedAngle > 270 || loopedAngle < 90) { // BOT WALL
 
-            var sideVector = new Vector(0,1).rotate(this.lookAngle.getAngle())
+            const sideVector = new Vector(0,1).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
@@ -2376,7 +2435,7 @@ class Player {
 
         if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
 
-            var sideVector = new Vector(1,0).rotate(this.lookAngle.getAngle())
+            const sideVector = new Vector(1,0).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
@@ -2391,7 +2450,7 @@ class Player {
 
         if (90 < loopedAngle && loopedAngle < 270) { // TOP WALL
             
-            var sideVector = new Vector(0,-1).rotate(this.lookAngle.getAngle())
+            const sideVector = new Vector(0,-1).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
             
             ctx.beginPath();
@@ -2406,7 +2465,7 @@ class Player {
 
         if (180 < loopedAngle && loopedAngle < 360) { // LEFT WALL
 
-            var sideVector = new Vector(-1,0).rotate(this.lookAngle.getAngle())
+            const sideVector = new Vector(-1,0).rotate(this.lookAngle.getAngle())
             ctx.fillStyle = map.calculateShadedColor(sideVector, map.style.playerColor)
 
             ctx.beginPath();
@@ -2429,7 +2488,7 @@ class Player {
         this.velocity = this.velocity.rotate(this.lookAngle.getAngle());
     }
 
-    updatePos(dt) {  // NEEDS TO BE FPS INDEPENDENT
+    updatePos() {  // NEEDS TO BE FPS INDEPENDENT
         
         if (UserInterface.levelState == 1 || UserInterface.levelState == 2) { // if NOT at end screen
 
@@ -2507,7 +2566,7 @@ class Player {
             // CHECK if colliding with checkpoint triggers
             map.checkpoints.forEach(checkpoint => {
                 
-                var distance = pDistance(this.x, this.y, checkpoint.triggerX1, checkpoint.triggerY1, checkpoint.triggerX2, checkpoint.triggerY2)
+                const distance = pDistance(this.x, this.y, checkpoint.triggerX1, checkpoint.triggerY1, checkpoint.triggerX2, checkpoint.triggerY2)
                 // console.log("distance to " + checkpoint + ": " + distance)
 
                 if (distance <= 16) { // COLLIDING WITH CP TRIGGER
@@ -2518,18 +2577,18 @@ class Player {
                 // gets minumum distance to line segment from point: https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
                 function pDistance(x, y, x1, y1, x2, y2) { 
 
-                    var A = x - x1;
-                    var B = y - y1;
-                    var C = x2 - x1;
-                    var D = y2 - y1;
+                    const A = x - x1;
+                    const B = y - y1;
+                    const C = x2 - x1;
+                    const D = y2 - y1;
 
-                    var dot = A * C + B * D;
-                    var len_sq = C * C + D * D;
-                    var param = -1;
+                    const dot = A * C + B * D;
+                    const len_sq = C * C + D * D;
+                    let param = -1;
                     if (len_sq != 0) //in case of 0 length line
                         param = dot / len_sq;
 
-                    var xx, yy;
+                    let xx, yy;
 
                     if (param < 0) {
                         xx = x1;
@@ -2544,8 +2603,8 @@ class Player {
                         yy = y1 + param * D;
                     }
 
-                    var dx = x - xx;
-                    var dy = y - yy;
+                    const dx = x - xx;
+                    const dy = y - yy;
                     return Math.sqrt(dx * dx + dy * dy);
                 }
             });
@@ -2578,7 +2637,7 @@ class Player {
     }
 
     checkCollision(arrayOfPlatformsToCheck) { // called every time player hits the floor ALSO used to check endzone collision
-        var collision = 0;
+        let collision = 0;
         arrayOfPlatformsToCheck.forEach(platform => { // LOOP THROUGH PLATFORMS
 
             class Rectangle{
@@ -2591,7 +2650,7 @@ class Player {
                 }
             }
 
-            let rectangleStore = [
+            const rectangleStore = [
                 new Rectangle(player.x-16, player.y-16, 32, 32, player.lookAngle.getAngle()),
                 new Rectangle(platform.x, platform.y, platform.width, platform.height, platform.angle)
             ]
@@ -2602,12 +2661,12 @@ class Player {
                 //cx,cy are the centre coordinates, vx,vy is the point to be measured against the center point
                     //Convert rotated angle into radians
                     rotatedAngle = rotatedAngle * Math.PI / 180;
-                    let dx = vx - cx;
-                    let dy = vy - cy;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
-                    let originalAngle = Math.atan2(dy,dx);
-                    let rotatedX = cx + distance * Math.cos(originalAngle + rotatedAngle);
-                    let rotatedY = cy + distance * Math.sin(originalAngle + rotatedAngle);
+                    const dx = vx - cx;
+                    const dy = vy - cy;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const originalAngle = Math.atan2(dy,dx);
+                    const rotatedX = cx + distance * Math.cos(originalAngle + rotatedAngle);
+                    const rotatedY = cy + distance * Math.sin(originalAngle + rotatedAngle);
                 
                     return {
                         x: rotatedX,
@@ -2617,13 +2676,13 @@ class Player {
             
             //Get the rotated coordinates for the square
             function getRotatedSquareCoordinates(square){
-                let centerX = square.x + (square.width / 2);
-                let centerY = square.y + (square.height / 2);
+                const centerX = square.x + (square.width / 2);
+                const centerY = square.y + (square.height / 2);
                 //Work out the new locations
-                let topLeft = workOutNewPoints(centerX, centerY, square.x, square.y, square.angle);
-                let topRight = workOutNewPoints(centerX, centerY, square.x + square.width, square.y, square.angle);
-                let bottomLeft = workOutNewPoints(centerX, centerY, square.x, square.y + square.height, square.angle);
-                let bottomRight = workOutNewPoints(centerX, centerY, square.x + square.width, square.y + square.height, square.angle);
+                const topLeft = workOutNewPoints(centerX, centerY, square.x, square.y, square.angle);
+                const topRight = workOutNewPoints(centerX, centerY, square.x + square.width, square.y, square.angle);
+                const bottomLeft = workOutNewPoints(centerX, centerY, square.x, square.y + square.height, square.angle);
+                const bottomRight = workOutNewPoints(centerX, centerY, square.x + square.width, square.y + square.height, square.angle);
                 return{
                     tl: topLeft,
                     tr: topRight,
@@ -2646,27 +2705,27 @@ class Player {
 
             //The actual Seperate Axis Theorum function
             function sat(polygonA, polygonB){
-                var perpendicularLine = null;
-                var dot = 0;
-                var perpendicularStack = [];
-                var amin = null;
-                var amax = null;
-                var bmin = null;
-                var bmax = null;
+                let perpendicularLine = null;
+                let dot = 0;
+                const perpendicularStack = [];
+                let amin = null;
+                let amax = null;
+                let bmin = null;
+                let bmax = null;
                 //Work out all perpendicular vectors on each edge for polygonA
-                for(var i = 0; i < polygonA.edge.length; i++){
+                for(let i = 0; i < polygonA.edge.length; i++){
                     perpendicularLine = new xy(-polygonA.edge[i].y,
                                                 polygonA.edge[i].x);
                     perpendicularStack.push(perpendicularLine);
                 }
                 //Work out all perpendicular vectors on each edge for polygonB
-                for(var i = 0; i < polygonB.edge.length; i++){
+                for(let i = 0; i < polygonB.edge.length; i++){
                     perpendicularLine = new xy(-polygonB.edge[i].y,
                                                 polygonB.edge[i].x);
                     perpendicularStack.push(perpendicularLine);
                 }
                 //Loop through each perpendicular vector for both polygons
-                for(var i = 0; i < perpendicularStack.length; i++){
+                for(let i = 0; i < perpendicularStack.length; i++){
                     //These dot products will return different values each time
                     amin = null;
                     amax = null;
@@ -2674,7 +2733,7 @@ class Player {
                     bmax = null;
                     /*Work out all of the dot products for all of the vertices in PolygonA against the perpendicular vector
                     that is currently being looped through*/
-                    for(var j = 0; j < polygonA.vertex.length; j++){
+                    for(let j = 0; j < polygonA.vertex.length; j++){
                         dot = polygonA.vertex[j].x *
                                 perpendicularStack[i].x +
                                 polygonA.vertex[j].y *
@@ -2689,7 +2748,7 @@ class Player {
                     }
                     /*Work out all of the dot products for all of the vertices in PolygonB against the perpendicular vector
                     that is currently being looped through*/
-                    for(var j = 0; j < polygonB.vertex.length; j++){
+                    for(let j = 0; j < polygonB.vertex.length; j++){
                         dot = polygonB.vertex[j].x *
                                 perpendicularStack[i].x +
                                 polygonB.vertex[j].y *
@@ -2719,42 +2778,40 @@ class Player {
 
             //Detect for a collision between the 2 rectangles
             function detectRectangleCollision(index){
-                // let thisRect = rectangleStore[index];
-                // let otherRect = index === 0 ? rectangleStore[1] : rectangleStore[0];
 
-                let thisRect = rectangleStore[0];
-                let otherRect = rectangleStore[1];
+                const thisRect = rectangleStore[0];
+                const otherRect = rectangleStore[1];
 
                 //Get rotated coordinates for both rectangles
-                let tRR = getRotatedSquareCoordinates(thisRect);
-                let oRR = getRotatedSquareCoordinates(otherRect);
+                const tRR = getRotatedSquareCoordinates(thisRect);
+                const oRR = getRotatedSquareCoordinates(otherRect);
                 //Vertices & Edges are listed in clockwise order. Starting from the top right
-                let thisTankVertices = [
+                const thisTankVertices = [
                     new xy(tRR.tr.x, tRR.tr.y),
                     new xy(tRR.br.x, tRR.br.y),
                     new xy(tRR.bl.x, tRR.bl.y),
                     new xy(tRR.tl.x, tRR.tl.y),
                 ];
-                let thisTankEdges = [
+                const thisTankEdges = [
                     new xy(tRR.br.x - tRR.tr.x, tRR.br.y - tRR.tr.y),
                     new xy(tRR.bl.x - tRR.br.x, tRR.bl.y - tRR.br.y),
                     new xy(tRR.tl.x - tRR.bl.x, tRR.tl.y - tRR.bl.y),
                     new xy(tRR.tr.x - tRR.tl.x, tRR.tr.y - tRR.tl.y)
                 ];
-                let otherTankVertices = [
+                const otherTankVertices = [
                     new xy(oRR.tr.x, oRR.tr.y),
                     new xy(oRR.br.x, oRR.br.y),
                     new xy(oRR.bl.x, oRR.bl.y),
                     new xy(oRR.tl.x, oRR.tl.y),
                 ];
-                let otherTankEdges = [
+                const otherTankEdges = [
                     new xy(oRR.br.x - oRR.tr.x, oRR.br.y - oRR.tr.y),
                     new xy(oRR.bl.x - oRR.br.x, oRR.bl.y - oRR.br.y),
                     new xy(oRR.tl.x - oRR.bl.x, oRR.tl.y - oRR.bl.y),
                     new xy(oRR.tr.x - oRR.tl.x, oRR.tr.y - oRR.tl.y)
                 ];
-                let thisRectPolygon = new polygon(thisTankVertices, thisTankEdges);
-                let otherRectPolygon = new polygon(otherTankVertices, otherTankEdges);
+                const thisRectPolygon = new polygon(thisTankVertices, thisTankEdges);
+                const otherRectPolygon = new polygon(otherTankVertices, otherTankEdges);
 
                 if(sat(thisRectPolygon, otherRectPolygon)){
                     collision += 1;
@@ -2848,8 +2905,8 @@ class Vector {
     rotate = function(ang) // angle in degrees. returns new array -- doesnt modify existing one. It seems to incriment by the angle
     {
         ang = ang * (Math.PI/180);
-        var cos = Math.cos(ang);
-        var sin = Math.sin(ang);
+        const cos = Math.cos(ang);
+        const sin = Math.sin(ang);
         return new Vector(Math.round(10000*(this.x * cos - this.y * sin))/10000, Math.round(10000*(this.x * sin + this.y * cos))/10000);
     }
 
@@ -2858,15 +2915,15 @@ class Vector {
     }
 
     getAngle = function() { // RETURNS ANGLE IN DEGREES. https://stackoverflow.com/questions/35271222/getting-the-angle-from-a-direction-vector
-        var angle = Math.atan2(this.y, this.x);   //radians
+        const angle = Math.atan2(this.y, this.x);   //radians
         // you need to divide by PI, and MULTIPLY by 180:
-        var degrees = 180 * angle/Math.PI;  //degrees
+        const degrees = 180 * angle/Math.PI;  //degrees
         return (360+Math.round(degrees))%360; //round number, avoid decimal fragments
     }
 
     normalize = function(multiplier) { // NOTE: requires multiplier
         if (this.length !== 0) {
-            var n = this.divide(this.magnitude()); // dont ever want to normalize when vector length is zero
+            const n = this.divide(this.magnitude()); // dont ever want to normalize when vector length is zero
             this.x = n.x * multiplier;
             this.y = n.y * multiplier;
         }
@@ -2885,7 +2942,7 @@ function updateGameArea() { // CALLED EVERY FRAME
         dt = (performance.now() - prevDateNow)/10; // Delta Time for FPS independence. dt = amount of milliseconds between frames
         prevDateNow = performance.now();
 
-        player.updatePos(dt) // dont need dt
+        player.updatePos() // dont need dt
         
         // Map sorts all in view platforms, walls, and player
         // places the player.posInRenderQueue where it belongs
@@ -2917,7 +2974,7 @@ function updateGameArea() { // CALLED EVERY FRAME
         MapEditor.render();
     }
 
-    UserInterface.render(dt);
+    UserInterface.render();
 
 }
 
