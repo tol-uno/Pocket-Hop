@@ -188,7 +188,7 @@ const UserInterface = {
         // CREATING THE BUTTONS []  []  [] 
 
         // Main Menu BUTTONS
-        btn_levelSelect = new Button("midX - 100", "midY - 50", 200, 100, "Play", 0, function() { 
+        btn_levelSelect = new Button("midX - 100", "midY - 50", 200, "play_button", "play_button_pressed", 0, function() { 
             UserInterface.gamestate = 2;
             UserInterface.renderedButtons = [btn_mainMenu, btn_custom_maps, btn_level_original, btn_level_noob, btn_level_hellscape]
             UserInterface.renderedButtons.forEach(button => {
@@ -196,7 +196,7 @@ const UserInterface = {
             });
         })
 
-        btn_settings = new Button("midX + 130", "midY - 50", 200, 100, "Settings", 0, function() {
+        btn_settings = new Button("midX + 130", "midY - 50", 200, "settings_button", "settings_button_pressed", 0, function() {
             UserInterface.gamestate = 3;
             UserInterface.renderedButtons = [btn_mainMenu, btn_sensitivitySlider, btn_volumeSlider, btn_debugText, btn_strafeHUD, btn_reset_settings] // debugText and strafeHud shouldnt be this accessible
             UserInterface.renderedButtons.forEach(button => {
@@ -204,7 +204,7 @@ const UserInterface = {
             });
         })
 
-        btn_mapEditor = new Button("midX - 330", "midY - 50", 200, 100, "Map Editor", 0, function() {
+        btn_mapEditor = new Button("midX - 330", "midY - 50", 200, "map_editor_button", "map_editor_button_pressed", 0, function() {
             UserInterface.gamestate = 7;
             UserInterface.renderedButtons = [btn_mainMenu, btn_new_map, btn_load_map]
             UserInterface.renderedButtons.forEach(button => {
@@ -214,7 +214,7 @@ const UserInterface = {
 
 
         // SETTINGS Buttons 
-        btn_reset_settings = new Button("canvasArea.canvas.width - 150", "canvasArea.canvas.height - 150", 80, 80, "Reset", 0, function() {
+        btn_reset_settings = new Button("canvasArea.canvas.width - 150", "canvasArea.canvas.height - 150", 80, "reset_button", "reset_button_pressed", 0, function() {
             window.localStorage.removeItem("record_original")
             window.localStorage.removeItem("record_noob")
             window.localStorage.removeItem("record_hellscape")
@@ -247,11 +247,11 @@ const UserInterface = {
             AudioHandler.setVolumes();
         })
 
-        btn_debugText = new ToggleButton(180, 270, 80, 80, "Debug Text", 0, function(sync) {
+        btn_debugText = new Button(310, 240, 80, "checkbox", "checkbox_pressed", 1, function(sync) {
             if (sync) {
                     this.toggle = UserInterface.debugText;
             } else {
-                if (this.toggle) {
+                if (this.toggle == 1) {
                     this.toggle = 0;
                     UserInterface.debugText = 0
                     window.localStorage.setItem("debugText_storage", 0)
@@ -263,7 +263,7 @@ const UserInterface = {
             }
         })
 
-        btn_strafeHUD = new ToggleButton(300, 270, 80, 80, "Strafe Helper", 0, function(sync) {
+        btn_strafeHUD = new Button(310, 300, 80, "checkbox", "checkbox_pressed", 1, function(sync) {
             if (sync) {
                 this.toggle = UserInterface.strafeHUD;
             } else {
@@ -466,7 +466,7 @@ const UserInterface = {
         btn_height_minus = new Button("canvasArea.canvas.width - 90", "180", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height -= 20 })
         btn_angle_plus = new Button("canvasArea.canvas.width - 55", "200", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle += 20 })
         btn_angle_minus = new Button("canvasArea.canvas.width - 90", "200", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle -= 20 })
-        btn_wall = new ToggleButton("canvasArea.canvas.width - 90", "220", 40, 20, "toggle", 0, function(sync) { 
+        btn_wall = new Button("canvasArea.canvas.width - 90", "220", 40, "checkbox", "checkbox_pressed", 1, function(sync) { 
             if (MapEditor.loadedMap) { // throws an error otherwise
                 if (sync) {
                     this.toggle = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall?1:0; // gets initial value of toggle
@@ -730,6 +730,14 @@ const UserInterface = {
             canvasArea.ctx.fillText("Null Hop", canvasArea.canvas.width/3.0, 120);
         }
 
+        if (this.gamestate == 3) { // In Settings
+            canvasArea.ctx.font = "20px sans-serif";
+            canvasArea.ctx.fillStyle = "white";
+            canvasArea.ctx.fillText("Debug Text", 180, 270)
+            canvasArea.ctx.fillText("Strafe Info", 180, 330)
+
+        }
+
         if (this.gamestate == 6) { // In Level
 
             if (this.debugText == 1) { // DRAWING DEBUG TEXT
@@ -847,102 +855,57 @@ const UserInterface = {
 
 
 class Button {
-    constructor(x, y, width, height, image, image_pressed, func) {
+    constructor(x, y, width, image, image_pressed, togglable, func) {
         this.x = eval(x);
         this.y = eval(y);
         this.savedX = x;
         this.savedY = y;
 
-        this.width = width; // should take from image eventually
-        this.height = height;
-        this.image = image
-        this.func = func;
+        this.image = document.getElementById(image)
+        this.image_pressed = document.getElementById(image_pressed)
+        this.width = width;
+        if (this.image != null) {
+            this.height = this.width * (this.image.height / this.image.width)
+        } else {this.height = 75} // incase missing image
 
         this.isPressed = false
-    }
-
-    render() {
-        
-        canvasArea.ctx.strokeStyle = "#BBBBBB";
-        canvasArea.ctx.lineWidth = 6;
-
-        canvasArea.ctx.beginPath();
-        canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
-        
-        const fillColor = this.isPressed ? "#DDDDDD" : "#FFFFFF"
-        canvasArea.ctx.fillStyle = fillColor;
-        
-        canvasArea.ctx.fill();
-        canvasArea.ctx.stroke();
-
-
-        // this should be drawing an image not text. text is placholder
-        canvasArea.ctx.font = "15px sans-serif";
-        canvasArea.ctx.fillStyle = "black";
-        canvasArea.ctx.fillText(this.image, this.x + 10, this.y + this.height / 2)
-    }
-
-    pressed() {
-        this.isPressed = true;
-        // any release event calls released() on applicable buttons then sets isPressed = false on every rendered button
-    }
-
-    released(override) {
-        if (override) {
-            this.func()
-        }
-        if (this.isPressed) {
-            this.func()
-        }
-    }
-
-    resize() {
-        this.x = eval(this.savedX)
-        this.y = eval(this.savedY)
-        // console.log("evalled: " + this.savedX)
-        // console.log("button position re-evaluated")
-    }
-}
-
-
-class ToggleButton {
-    constructor(x, y, width, height, image, image_pressed, func) {
-        this.x = eval(x);
-        this.y = eval(y);
-        this.savedX = x;
-        this.savedY = y;
-
-        this.width = width; // should take from image eventually
-        this.height = height;
-        this.image = image
         this.func = func;
 
-        this.isPressed = false
         this.toggle = 0
-        this.func(true) // runs the released function with the "sync" tag to sync button's toggle state
+        if (togglable) {
+            this.func(true) // runs the released function with the "sync" tag to sync button's toggle state
+        }
+
     }
 
     render() {
+    
 
-        canvasArea.ctx.strokeStyle = "#BBBBBB";
-        canvasArea.ctx.lineWidth = 6;
-        
-        canvasArea.ctx.beginPath();
-        canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
-        
-        if (this.toggle == 1 || this.isPressed) {
-            canvasArea.ctx.fillStyle = "#DDDDDD";
+        if (this.image == null) { // should remove once all images are added
+
+            if (this.toggle == 1 || this.isPressed) {
+                canvasArea.ctx.fillStyle = "#DDDDDD";
+            } else {
+                canvasArea.ctx.fillStyle = "#FFFFFF"
+            }
+            canvasArea.ctx.fillRect(this.x, this.y, this.width, this.height);
+
+            // this should be drawing an image not text. text is placholder
+            canvasArea.ctx.font = "15px sans-serif";
+            canvasArea.ctx.fillStyle = "black";
+            canvasArea.ctx.fillText("missing image", this.x + 10, this.y + this.height / 2)
+
         } else {
-            canvasArea.ctx.fillStyle = "#FFFFFF"
+
+            if (this.toggle == 1 || this.isPressed) {
+                canvasArea.ctx.drawImage(this.image_pressed, this.x, this.y, this.width, this.width * (this.image.height / this.image.width)); // end part here maintains aspect ratio
+            } else {
+                canvasArea.ctx.drawImage(this.image, this.x, this.y, this.width, this.width * (this.image.height / this.image.width)); // end part here maintains aspect ratio
+            }
         }
 
-        canvasArea.ctx.fill();
-        canvasArea.ctx.stroke();
 
-        // this should be drawing an image not text. text is placholder
-        canvasArea.ctx.font = "15px sans-serif";
-        canvasArea.ctx.fillStyle = "black";
-        canvasArea.ctx.fillText(this.image, this.x + 10, this.y + this.height / 2)
+     
     }
 
     pressed() {
@@ -952,11 +915,8 @@ class ToggleButton {
 
     released(override) {
         if (override) {this.func()}
-        if (this.isPressed) {
-            this.func()
-        }
+        if (this.isPressed) {this.func()}
     }
-
     resize() {
         this.x = eval(this.savedX)
         this.y = eval(this.savedY)
@@ -990,19 +950,14 @@ class SliderUI {
 
     render() {
         canvasArea.ctx.strokeStyle = "#BBBBBB";
-        canvasArea.ctx.lineWidth = 10;
+        canvasArea.ctx.lineWidth = 8;
+        canvasArea.ctx.lineCap = "round"
         canvasArea.ctx.fillStyle = "#FFFFFF";
         
         canvasArea.ctx.beginPath(); // Slider Line
         canvasArea.ctx.moveTo(this.x, this.y)
         canvasArea.ctx.lineTo(this.x + this.width, this.y)
         canvasArea.ctx.stroke();
-
-        // canvasArea.ctx.save();
-        // canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
-        // canvasArea.ctx.shadowBlur = 10;
-        // canvasArea.ctx.fill();
-        // canvasArea.ctx.restore();
 
         canvasArea.ctx.beginPath(); // Slider Handle
         canvasArea.ctx.arc(this.sliderX, this.y, 15, 0, 2 * Math.PI);
