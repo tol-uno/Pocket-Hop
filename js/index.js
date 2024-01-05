@@ -155,7 +155,7 @@ const UserInterface = {
     timerStart : null, // set by jump button
     levelState : 1, // 1 = pre-start, 2 = playing level, 3 = in endzone
 
-    start : function() {
+    start : function() { // where all buttons are created
 
         // Retreaving settings from local storage OR setting them
         this.sensitivity = window.localStorage.getItem("sensitivity_storage")
@@ -247,10 +247,10 @@ const UserInterface = {
             AudioHandler.setVolumes();
         })
 
-        btn_debugText = new Button(180, 270, 80, 80, "Debug Text", 1, function(init) {
-            if (init) {
+        btn_debugText = new ToggleButton(180, 270, 80, 80, "Debug Text", 0, function(sync) {
+            if (sync) {
                     this.toggle = UserInterface.debugText;
-                } else {
+            } else {
                 if (this.toggle) {
                     this.toggle = 0;
                     UserInterface.debugText = 0
@@ -263,8 +263,8 @@ const UserInterface = {
             }
         })
 
-        btn_strafeHUD = new Button(300, 270, 80, 80, "Strafe Helper", 1, function(init) {
-            if (init) {
+        btn_strafeHUD = new ToggleButton(300, 270, 80, 80, "Strafe Helper", 0, function(sync) {
+            if (sync) {
                 this.toggle = UserInterface.strafeHUD;
             } else {
                 if (this.toggle == 1) {
@@ -466,19 +466,17 @@ const UserInterface = {
         btn_height_minus = new Button("canvasArea.canvas.width - 90", "180", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height -= 20 })
         btn_angle_plus = new Button("canvasArea.canvas.width - 55", "200", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle += 20 })
         btn_angle_minus = new Button("canvasArea.canvas.width - 90", "200", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle -= 20 })
-        btn_wall = new Button("canvasArea.canvas.width - 90", "220", 40, 20, "toggle", 1, function(init) { 
+        btn_wall = new ToggleButton("canvasArea.canvas.width - 90", "220", 40, 20, "toggle", 0, function(sync) { 
             if (MapEditor.loadedMap) { // throws an error otherwise
-                
-                if (init) {
+                if (sync) {
                     this.toggle = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall?1:0; // gets initial value of toggle
-                    console.log("init run")
                 } else {
                     if (this.toggle) {
                         this.toggle = 0;
-                        MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall = 1
+                        MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall = 0
                     } else {
                         this.toggle = 1;
-                        MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall = 0
+                        MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall = 1
                     }
                 }
             }    
@@ -628,16 +626,15 @@ const UserInterface = {
         return minutes + ":" + extraSeconds;
     },
 
-    touchReleased : function(x,y) { // TRIGGERED BY InputHandler
+    touchStarted : function(x,y) { // TRIGGERED BY InputHandler
         
         let clickedPlatform = false;
         let clickedButton = false;
         let clickedPlayer = false;
 
-        // TEST IF TOUCHING WITHIN PLATFORM EDIT PANEL ON THE RIGHT
 
         this.renderedButtons.forEach(button => {
-            if (button.constructor.name == "Button") { // only run on buttons not sliders
+            if (button.constructor.name == "Button" || button.constructor.name == "ToggleButton") { // only run on buttons not sliders
                 if ( // if x and y touch is within button
                     x >= button.x && x <= button.x + button.width &&
                     y >= button.y && y <= button.y + button.height
@@ -647,9 +644,34 @@ const UserInterface = {
                 }
             }
         });
+    },
+    
+    touchReleased : function(x,y) { // TRIGGERED BY InputHandler
+        
+        let clickedPlatform = false;
+        let clickedButton = false;
+        let clickedPlayer = false;
 
 
-        if (clickedButton == false && this.gamestate == 7 && MapEditor.editorState != 0) { // IF IN MAP EDITOR and not in map select screen in editor
+        this.renderedButtons.forEach(button => {
+            if (button.constructor.name == "Button" || button.constructor.name == "ToggleButton") { // only run on buttons not sliders
+                if ( // if x and y touch is within button
+                    x >= button.x && x <= button.x + button.width &&
+                    y >= button.y && y <= button.y + button.height
+                ) {
+                    button.released();
+                    clickedButton = true;
+                }
+
+                button.isPressed = false
+            }
+            
+        });
+
+
+        // DEALING WITH MAP EDITOR: Clicking player, clicking platforms, deselecting platform when clicking nothing.
+        // IF IN MAP EDITOR but not in map select screen within editor
+        if (clickedButton == false && this.gamestate == 7 && MapEditor.editorState != 0) { 
             
             MapEditor.renderedPlatforms.forEach(platform => {
                 if (// if x and y touch is within platform (NOT ROTATED THOUGH)
@@ -658,7 +680,9 @@ const UserInterface = {
                 ) {
                     MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.indexOf(platform)
                     clickedPlatform = true;
-                    this.renderedButtons = [btn_exit_edit, btn_unselect, 
+                    this.renderedButtons = [
+                        btn_exit_edit, 
+                        btn_unselect, 
                         
                         btn_x_plus, 
                         btn_x_minus, 
@@ -672,7 +696,10 @@ const UserInterface = {
                         btn_angle_minus,
                         btn_wall,
 
-                        btn_delete_platform]
+                        btn_delete_platform
+                    ]
+                    
+                    btn_wall.func(true) // syncs the wall button's toggle state
                 }
             })
             
@@ -680,18 +707,14 @@ const UserInterface = {
                 x >= MapEditor.loadedMap.playerStart.x + MapEditor.screenX - 16 && x <= MapEditor.loadedMap.playerStart.x + 16 + MapEditor.screenX &&
                 y >= MapEditor.loadedMap.playerStart.y + MapEditor.screenY - 16 && y <= MapEditor.loadedMap.playerStart.y + 16 + MapEditor.screenY
             ) {
-                MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own let
+                MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own variable
                 clickedPlayer = true;
             }
 
             if (clickedPlatform == false && clickedPlayer == false) {
-                btn_unselect.pressed();
+                btn_unselect.released(true);
             }
-
         }
-
-        
-
 
     },
 
@@ -702,9 +725,9 @@ const UserInterface = {
         });
 
         if (this.gamestate == 1) { // In Main Menu
-            canvasArea.ctx.font = "70px sans-serif";
+            canvasArea.ctx.font = "80px sans-serif";
             canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
-            canvasArea.ctx.fillText("Null's Voyage", canvasArea.canvas.width/4.4, 90);
+            canvasArea.ctx.fillText("Null Hop", canvasArea.canvas.width/3.0, 120);
         }
 
         if (this.gamestate == 6) { // In Level
@@ -824,7 +847,7 @@ const UserInterface = {
 
 
 class Button {
-    constructor(x, y, width, height, image, image_pressed, togglable, func) {
+    constructor(x, y, width, height, image, image_pressed, func) {
         this.x = eval(x);
         this.y = eval(y);
         this.savedX = x;
@@ -833,32 +856,23 @@ class Button {
         this.width = width; // should take from image eventually
         this.height = height;
         this.image = image
-        this.togglable = togglable;
         this.func = func;
 
-        this.toggle = 0
-        if (this.togglable == 1) {this.func(true)} // runs the pressed function with the "init" tag to sync button pressed or released
+        this.isPressed = false
     }
 
     render() {
-        canvasArea.ctx.fillStyle = "#FFFFFF";
-
-        if (this.togglable == 1) {
-            if (this.toggle == 1) {canvasArea.ctx.fillStyle = "#a3a3a3";}
-        }
-
+        
         canvasArea.ctx.strokeStyle = "#BBBBBB";
         canvasArea.ctx.lineWidth = 6;
+
         canvasArea.ctx.beginPath();
-
         canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
-
-        canvasArea.ctx.save();
-        canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
-        canvasArea.ctx.shadowBlur = 10;
+        
+        const fillColor = this.isPressed ? "#DDDDDD" : "#FFFFFF"
+        canvasArea.ctx.fillStyle = fillColor;
+        
         canvasArea.ctx.fill();
-        canvasArea.ctx.restore();
-
         canvasArea.ctx.stroke();
 
 
@@ -869,7 +883,17 @@ class Button {
     }
 
     pressed() {
-        this.func();
+        this.isPressed = true;
+        // any release event calls released() on applicable buttons then sets isPressed = false on every rendered button
+    }
+
+    released(override) {
+        if (override) {
+            this.func()
+        }
+        if (this.isPressed) {
+            this.func()
+        }
     }
 
     resize() {
@@ -882,7 +906,7 @@ class Button {
 
 
 class ToggleButton {
-    constructor(x, y, width, height, image, image_pressed, togglable, func) {
+    constructor(x, y, width, height, image, image_pressed, func) {
         this.x = eval(x);
         this.y = eval(y);
         this.savedX = x;
@@ -891,34 +915,29 @@ class ToggleButton {
         this.width = width; // should take from image eventually
         this.height = height;
         this.image = image
-        this.togglable = togglable;
         this.func = func;
 
+        this.isPressed = false
         this.toggle = 0
-        if (this.togglable == 1) {this.func(true)} // runs the pressed function with the "init" tag to sync button pressed or released
+        this.func(true) // runs the released function with the "sync" tag to sync button's toggle state
     }
 
     render() {
-        canvasArea.ctx.fillStyle = "#FFFFFF";
-
-        if (this.togglable == 1) {
-            if (this.toggle == 1) {canvasArea.ctx.fillStyle = "#a3a3a3";}
-        }
 
         canvasArea.ctx.strokeStyle = "#BBBBBB";
         canvasArea.ctx.lineWidth = 6;
+        
         canvasArea.ctx.beginPath();
-
         canvasArea.ctx.rect(this.x, this.y, this.width, this.height);
+        
+        if (this.toggle == 1 || this.isPressed) {
+            canvasArea.ctx.fillStyle = "#DDDDDD";
+        } else {
+            canvasArea.ctx.fillStyle = "#FFFFFF"
+        }
 
-        canvasArea.ctx.save();
-        canvasArea.ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
-        canvasArea.ctx.shadowBlur = 10;
         canvasArea.ctx.fill();
-        canvasArea.ctx.restore();
-
         canvasArea.ctx.stroke();
-
 
         // this should be drawing an image not text. text is placholder
         canvasArea.ctx.font = "15px sans-serif";
@@ -927,7 +946,15 @@ class ToggleButton {
     }
 
     pressed() {
-        this.func();
+        this.isPressed = true;
+        // any release event calls released() on applicable buttons then sets isPressed = false on every rendered button
+    }
+
+    released(override) {
+        if (override) {this.func()}
+        if (this.isPressed) {
+            this.func()
+        }
     }
 
     resize() {
@@ -2201,7 +2228,6 @@ class InputHandler {
 
 
     constructor(){
-        let scrolled = false; // if scrolled==true UserInterface.touchReleased isnt sent
 
         window.addEventListener("touchstart", e => {
 
@@ -2214,14 +2240,15 @@ class InputHandler {
                 if (this.dragging == false) { // if this should be the new dragging touch
                     this.currentDragID = e.changedTouches[i].identifier;
                     this.dragging = true;
-                    scrolled = false; // if scrolled==true UserInterface.touchReleased isnt sent
 
                     this.touchX = e.changedTouches[i].pageX;
                     this.touchY = e.changedTouches[i].pageY;
                     this.previousX = e.changedTouches[i].pageX;
                     this.previousY = e.changedTouches[i].pageY;
-
                 }
+
+                UserInterface.touchStarted(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchStarted for every touchStart
+
             }
         });
 
@@ -2232,7 +2259,6 @@ class InputHandler {
                 if (e.changedTouches[i].identifier == this.currentDragID) { // if this touch is the dragging touch
                     this.touchX = e.changedTouches[i].pageX;
                     this.touchY = e.changedTouches[i].pageY;
-                    scrolled = true; // if scrolled==true UserInterface.touchReleased isnt sent
                 }
 
                 if (this.dragging == false) { // if main drag is released but theres another to jump to
@@ -2243,10 +2269,7 @@ class InputHandler {
                     // calculatePinchAmount
                     // OKAY MAYBE KILL THE PINCH IDEA
                 }
-
-    
             }
-
         });
 
 
@@ -2284,10 +2307,8 @@ class InputHandler {
                     }
                 }
 
-                // if (scrolled == false) {
-                    UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
-                // }
-            
+                UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
+
             }
 
 
@@ -2547,7 +2568,7 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    // this.teleport();
+                    this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
@@ -2851,7 +2872,7 @@ class Player {
             this.jumpValue = 0;
             this.jumpVelocity = 2;
         } else {
-            btn_restart.pressed();
+            btn_restart.released(true);
         }
     }
 
