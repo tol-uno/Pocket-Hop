@@ -1887,32 +1887,34 @@ class Map {
                     
 
                     // GET PLAYERS LEFTMOST AND RIGHT MOST CORNERS
-                    player.leftMostPlayerCornerX = null
+                    // YOU DONT NEED X COORDS BUT I KEPT THEM HERE JUST COMMENTED OUT
+                    
+                    // player.leftMostPlayerCornerX = null
                     player.leftMostPlayerCornerY = null
-                    player.rightMostPlayerCornerX = null
+                    // player.rightMostPlayerCornerX = null
                     player.rightMostPlayerCornerY = null
                     if (0 <= angle && angle < 90) { // leftMost=bot left        rightMost=top right 
-                        player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                        // player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
                         player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
-                        player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                        // player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
                         player.rightMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
                     }
                     if (90 <= angle && angle < 180) { // leftMost=bot right     rightMost=top left
-                        player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                        // player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
                         player.leftMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
-                        player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                        // player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
                         player.rightMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
                     }
                     if (180 <= angle && angle < 270) { // leftMost=top right    rightMost=bot left 
-                        player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                        // player.leftMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
                         player.leftMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
-                        player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
+                        // player.rightMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad)))
                         player.rightMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad)))
                     }
                     if (270 <= angle && angle < 360) { // leftMost=top left     rightMost=bot right
-                        player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                        // player.leftMostPlayerCornerX = player.x - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
                         player.leftMostPlayerCornerY = player.y - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
-                        player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
+                        // player.rightMostPlayerCornerX = player.x + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad)))
                         player.rightMostPlayerCornerY = player.y + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad)))
                     }
 
@@ -1957,30 +1959,29 @@ class Map {
                         
                         if (verticalAxisExtensionX < player.x) { // walls vertical axis is to the left of player. wall is to the left
     
-                                // check player left corner compared to wall's right corner
-                                if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
-                                    // render wall in front of player
-                                    infrontPlayer.push(platform)
-                                    if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
-                                } else {
-                                    // render wall normally (behind player)
+                            // check player left corner compared to wall's right corner
+                            if (platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
+                                // render wall in front of player
+                                infrontPlayer.push(platform)
+                                if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
+                            } else {
+                                    // render wall behind player
                                     behindPlayer.push(platform)
-                                }
-    
-    
-                            } else { // wall is to the right of player
-                                
-                                // check player right corner compared to wall's left corner
-                                if (platform.leftMostPlatformCornerX < player.rightMostPlayerCornerX && platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
-                                    // render wall in front of player
-                                    infrontPlayer.push(platform)
-                                    if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
-                                } else {
-                                    // render wall normally (behind player)
-                                    behindPlayer.push(platform)
-                                }
-    
                             }
+
+    
+                        } else { // wall is to the right of player
+                            
+                            // check player right corner compared to wall's left corner
+                            if (platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping.
+                                // render wall in front of player
+                                infrontPlayer.push(platform)
+                                if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
+                            } else { 
+                                    // render wall behind player
+                                    behindPlayer.push(platform)
+                            }
+                        }
                     }
 
 
@@ -1991,24 +1992,24 @@ class Map {
                         if (horizontalAxisExtensionX < player.x) { // walls horizontal axis is to the left of player. wall is to the left (or player is sorta above the horizontal axis)
                         
                             // check player left corner compared to wall's right corner
-                            if (platform.rightMostPlatformCornerX > player.leftMostPlayerCornerX && platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
+                            if (platform.rightMostPlatformCornerY > player.leftMostPlayerCornerY) { // overlapping 
                                 // render wall in front of player
                                 infrontPlayer.push(platform)
                                 if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
                             } else {
-                                // render wall normally (behind player)
+                                // render wall behind player
                                 behindPlayer.push(platform)
                             }
     
                         } else { // wall is to the right of player
     
                             // check player right corner compared to wall's left corner
-                            if (platform.leftMostPlatformCornerX < player.rightMostPlayerCornerX && platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
+                            if (platform.leftMostPlatformCornerY > player.rightMostPlayerCornerY) { // overlapping 
                                 // render wall in front of player
                                 infrontPlayer.push(platform)
                                 if (platform.index < indexSplitSpot) {indexSplitSpot = platform.index}
                             } else {
-                                // render wall normally (behind player)
+                                // render wall behind player
                                 behindPlayer.push(platform)
                             }
                         }
@@ -2136,11 +2137,11 @@ class Map {
         }
 
         // PLAFORM RENDERING DEBUG TEXT
-        // ctx.fillStyle = "#FFFFFF";
-        // ctx.font = "12px sans-serif"
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "12px sans-serif"
         // ctx.fillText("index: " + platform.index, 0, 0);
         // ctx.fillText("renderIndex: " + this.renderedPlatforms.indexOf(platform), 0, 0)
-        // ctx.fillText("angle: " + platform.angle, 0, 20);
+        ctx.fillText("angle: " + platform.angle, 0, 20);
         // ctx.fillText("position: " + platform.x + ", " + platform.y, 0 , 40)
         // ctx.fillText("width / height: " + platform.width + ", " + platform.height, 0 , 40)
         // ctx.fillText("slope vert: " + platform.verticalSlope, 0, 60)
@@ -2151,13 +2152,13 @@ class Map {
         
 
         // Centered Axis
-        if (platform.angle == 20){
+        // if (platform.angle == 20){
 
             ctx.fillStyle = "lime"
             ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope), player.y, 5, 5)
             ctx.fillStyle = "green"
             ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope), player.y, 5, 5)
-        }
+        // }
         
 
         // DRAWING WALL Z-ORDER DEBUG POINTS (CORNERS)
@@ -2587,7 +2588,7 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    this.teleport();
+                    // this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
