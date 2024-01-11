@@ -188,7 +188,7 @@ const UserInterface = {
         // CREATING THE BUTTONS []  []  [] 
 
         // Main Menu BUTTONS
-        btn_levelSelect = new Button("midX - 100", "midY - 50", 200, "play_button", "play_button_pressed", 0, function() { 
+        btn_play = new Button("midX - 90", 130, 180, "play_button", "play_button_pressed", 0, function() { 
             UserInterface.gamestate = 2;
             UserInterface.renderedButtons = [btn_mainMenu, btn_custom_maps, btn_level_original, btn_level_noob, btn_level_hellscape]
             UserInterface.renderedButtons.forEach(button => {
@@ -196,7 +196,7 @@ const UserInterface = {
             });
         })
 
-        btn_settings = new Button("midX + 130", "midY - 50", 200, "settings_button", "settings_button_pressed", 0, function() {
+        btn_settings = new Button("midX - 106", 220, 212, "settings_button", "settings_button_pressed", 0, function() {
             UserInterface.gamestate = 3;
             UserInterface.renderedButtons = [btn_mainMenu, btn_sensitivitySlider, btn_volumeSlider, btn_debugText, btn_strafeHUD, btn_reset_settings] // debugText and strafeHud shouldnt be this accessible
             UserInterface.renderedButtons.forEach(button => {
@@ -204,7 +204,7 @@ const UserInterface = {
             });
         })
 
-        btn_mapEditor = new Button("midX - 330", "midY - 50", 200, "map_editor_button", "map_editor_button_pressed", 0, function() {
+        btn_mapEditor = new Button("midX - 122", 310, 244, "map_editor_button", "map_editor_button_pressed", 0, function() {
             UserInterface.gamestate = 7;
             UserInterface.renderedButtons = [btn_mainMenu, btn_new_map, btn_load_map]
             UserInterface.renderedButtons.forEach(button => {
@@ -215,7 +215,7 @@ const UserInterface = {
 
         // SETTINGS Buttons 
         btn_reset_settings = new Button("canvasArea.canvas.width - 150", "canvasArea.canvas.height - 150", 80, "reset_button", "reset_button_pressed", 0, function() {
-            window.localStorage.removeItem("record_original")
+            window.localStorage.removeItem("record_original") // loop through all maps here
             window.localStorage.removeItem("record_noob")
             window.localStorage.removeItem("record_hellscape")
 
@@ -225,23 +225,26 @@ const UserInterface = {
         
             UserInterface.debugText = 0
             window.localStorage.setItem("debugText_storage", 0)
-            
+            btn_debugText.func(true)
+
             UserInterface.strafeHUD = 0
             window.localStorage.setItem("strafeHUD_storage", 0)
-            
+            btn_strafeHUD.func(true)
+
             UserInterface.volume = 0.5
             window.localStorage.setItem("volume_storage", 0.5)
+            btn_volumeSlider.updateState(0.5)
             
             console.log("records and settings cleared")
 
         })
 
-        btn_sensitivitySlider = new SliderUI(180, 100, 300, 0.1, 3, "Sensitivity", UserInterface.sensitivity, function() { 
+        btn_sensitivitySlider = new SliderUI(180, 100, 300, 0.1, 3, 10, "Sensitivity", "red", UserInterface.sensitivity, function() { 
             UserInterface.sensitivity = this.value
             window.localStorage.setItem("sensitivity_storage", this.value)
         })
 
-        btn_volumeSlider = new SliderUI(180, 200, 300, 0, 1, "Volume", UserInterface.volume, function() { 
+        btn_volumeSlider = new SliderUI(180, 200, 300, 0, 1, 10, "Volume", "white", UserInterface.volume, function() { 
             UserInterface.volume = this.value
             window.localStorage.setItem("volume_storage", this.value)
             AudioHandler.setVolumes();
@@ -425,13 +428,19 @@ const UserInterface = {
                 downloadAnchorNode.remove();
             }
 
-            MapEditor.loadedMap = null;
-            UserInterface.renderedButtons = [btn_mainMenu, btn_new_map, btn_load_map]
             MapEditor.editorState = 0;
-            MapEditor.selectedPlatformIndex -1;
+            MapEditor.loadedMap = null;
+            MapEditor.screenX = 0
+            MapEditor.screenY = 0
+            MapEditor.scrollX_vel = 0, // for smooth scrolling 
+            MapEditor.scrollY_vel = 0,
+            MapEditor.renderedPlatforms = [], // dont actually need to reset all this shit
+            UserInterface.renderedButtons = [btn_mainMenu, btn_new_map, btn_load_map]
+            MapEditor.selectedPlatformIndex = -1;
+
         })
         
-        btn_add_platform = new Button("canvasArea.canvas.width - 200", "100", 150, 80, "New Platform", 0, function() {
+        btn_add_platform = new Button("canvasArea.canvas.width - 240", "60", 180, "platform_button", "platform_button_pressed", 0, function() {
             
             const newPlatform = {
                 "x": Math.round(-MapEditor.screenX + canvasArea.canvas.width/2),
@@ -446,27 +455,66 @@ const UserInterface = {
 
             MapEditor.loadedMap.platforms.push(newPlatform);
             MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.length - 1;
-            UserInterface.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform]
-                
+            UserInterface.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform, btn_translate, btn_resize, btn_angleSlider, btn_wall]
+            
+            // SYNC ALL BUTTONS AND SLIDERS
+            btn_translate.func() // intially syncs the buttons position to the selected platform. Called whenever screen is scrolled too. not really needed here but avoids a 1 frame flash 
+            btn_resize.func()
+            btn_angleSlider.updateState(MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle)
+            btn_wall.func(true) // syncs the wall button's toggle state
         })
 
-        btn_unselect = new Button("canvasArea.canvas.width - 190", "30", 60, 60, "X", 0, function() {
+        btn_unselect = new Button("canvasArea.canvas.width - 210", "30", 60, "x_button", "x_button_pressed", 0, function() {
             
             MapEditor.selectedPlatformIndex = -1; // No selected platform
             UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform]
         })
 
-        btn_x_plus = new Button("canvasArea.canvas.width - 55", "120", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].x += 20 })
-        btn_x_minus = new Button("canvasArea.canvas.width - 90", "120", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].x -= 20 })
-        btn_y_plus = new Button("canvasArea.canvas.width - 55", "140", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].y += 20 })
-        btn_y_minus = new Button("canvasArea.canvas.width - 90", "140", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].y -= 20 })
-        btn_width_plus = new Button("canvasArea.canvas.width - 55", "160", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].width += 20 })
-        btn_width_minus = new Button("canvasArea.canvas.width - 90", "160", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].width -= 20 })
-        btn_height_plus = new Button("canvasArea.canvas.width - 55", "180", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height += 20 })
-        btn_height_minus = new Button("canvasArea.canvas.width - 90", "180", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].height -= 20 })
-        btn_angle_plus = new Button("canvasArea.canvas.width - 55", "200", 20, 20, "+", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle += 20 })
-        btn_angle_minus = new Button("canvasArea.canvas.width - 90", "200", 20, 20, "-", 0, function() { MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle -= 20 })
-        btn_wall = new Button("canvasArea.canvas.width - 90", "220", 40, "checkbox", "checkbox_pressed", 1, function(sync) { 
+        btn_translate = new Button(0, 0, 45, "translate_button", "translate_button_pressed", 0, function() {
+            let platform = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex]
+            
+            if (this.isPressed) {
+                platform.x += touchHandler.dragAmountX
+                platform.y += touchHandler.dragAmountY
+            }
+
+            this.x =  MapEditor.screenX + platform.x + platform.width/2 - this.width/2
+            this.y =  MapEditor.screenY + platform.y + platform.height/2 - this.height/2
+            
+        })
+
+
+        btn_resize = new Button(0, 0, 35, "translate_button", "translate_button_pressed", 0, function() {
+
+            let platform = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex]
+
+            // bot right corner
+            const angleRad = platform.angle * (Math.PI/180);
+            const cornerX =  ((platform.width / 2) * Math.cos(angleRad)) - ((platform.height / 2) * Math.sin(angleRad))
+            const cornerY = ((platform.width / 2) * Math.sin(angleRad)) + ((platform.height / 2) * Math.cos(angleRad))
+
+            if (this.isPressed && touchHandler.dragging) {
+                this.x = touchHandler.touchX - this.width/2
+                this.y = touchHandler.touchY - this.height/2
+
+                platform.width = Math.round(this.x - platform.x + platform.width/2 - cornerX - MapEditor.screenX)
+                if (platform.width < 10) {platform.width = 10}
+                platform.height = Math.round(this.y - platform.y + platform.height/2 - cornerY - MapEditor.screenY)
+                if (platform.height < 10) {platform.height = 10}
+
+            } else { // not touching -- just set it to default position
+                this.x = platform.x + platform.width/2 + cornerX + MapEditor.screenX
+                this.y = platform.y + platform.height/2 + cornerY + MapEditor.screenY
+            }
+
+            
+        })
+
+        btn_angleSlider = new SliderUI("canvasArea.canvas.width - 205", "205", 170, -50, 50, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex] : 0, function() { 
+            MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle = this.value
+        })
+
+        btn_wall = new Button("canvasArea.canvas.width - 90", "225", 40, "checkbox", "checkbox_pressed", 1, function(sync) { 
             if (MapEditor.loadedMap) { // throws an error otherwise
                 if (sync) {
                     this.toggle = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].wall?1:0; // gets initial value of toggle
@@ -483,7 +531,8 @@ const UserInterface = {
         })
         
 
-        btn_delete_platform = new Button("canvasArea.canvas.width - 190", "300", 150, 60, "Delete Platform", 0, function() {
+
+        btn_delete_platform = new Button("canvasArea.canvas.width - 200", "300", 150, "delete_button", "delete_button_pressed", 0, function() {
             
             MapEditor.loadedMap.platforms.splice(MapEditor.selectedPlatformIndex, 1)
             MapEditor.selectedPlatformIndex = -1; // No selected platform
@@ -493,7 +542,7 @@ const UserInterface = {
 
 
         // MAP SELECT Buttons
-        btn_custom_maps = new Button("canvasArea.canvas.width - 200", 50, 150, 80, "Custom Maps", 0, function() { 
+        btn_custom_maps = new Button("canvasArea.canvas.width - 225", 50, 175, "custom_maps_button", "custom_maps_button_pressed", 0, function() { 
             
             
             const input = document.createElement("input");
@@ -546,27 +595,27 @@ const UserInterface = {
         })
 
 
-        // In Level Buttons
-        btn_mainMenu = new Button(50, 40, 80, 60, "menu", 0, function() { 
+        // IN LEVEL Buttons
+        btn_mainMenu = new Button(40, 40, 80, "back_button", "back_button_pressed", 0, function() { 
             UserInterface.gamestate = 1;
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
             player = null;
             map = null;
-            UserInterface.renderedButtons = [btn_mapEditor, btn_levelSelect, btn_settings];
+            UserInterface.renderedButtons = [btn_mapEditor, btn_play, btn_settings];
             UserInterface.renderedButtons.forEach(button => {
                 button.resize();
             });
         })
 
-        btn_restart = new Button(50, 200, 80, 60, "restart", 0, function() { 
+        btn_restart = new Button(40, "canvasArea.canvas.height - 220", 80, "restart_button", "restart_button_pressed", 0, function() { 
             UserInterface.timer = 0;
             UserInterface.levelState = 1;
             player.checkpointIndex = -1;
             player.restart();
         })
 
-        btn_jump = new Button(50, 300, 80, 60, "jump", 0, function() { 
+        btn_jump = new Button(40, "canvasArea.canvas.height - 120", 80, "jump_button", "jump_button_pressed", 0, function() { 
             if (UserInterface.levelState == 1) {
                 UserInterface.timerStart = Date.now();
                 UserInterface.levelState = 2;
@@ -574,13 +623,13 @@ const UserInterface = {
             }
         })
 
-        this.renderedButtons = [btn_mapEditor, btn_levelSelect, btn_settings]; 
+        this.renderedButtons = [btn_mapEditor, btn_play, btn_settings]; 
 
     },
 
     update : function() {
         
-        if (this.gamestate == 3) { // in setting page -- only place with sliders that need to be updated
+        if (this.gamestate == 3 || MapEditor.editorState == 2) { // in setting page or in map editor
             this.renderedButtons.forEach(button => { // LOOP RENDERED BUTTONS
                 if (button.constructor.name == "SliderUI") { // run .update() for only Sliders
                     button.update();
@@ -628,13 +677,8 @@ const UserInterface = {
 
     touchStarted : function(x,y) { // TRIGGERED BY InputHandler
         
-        let clickedPlatform = false;
-        let clickedButton = false;
-        let clickedPlayer = false;
-
-
         this.renderedButtons.forEach(button => {
-            if (button.constructor.name == "Button" || button.constructor.name == "ToggleButton") { // only run on buttons not sliders
+            if (button.constructor.name == "Button") { // only run on buttons not sliders
                 if ( // if x and y touch is within button
                     x >= button.x && x <= button.x + button.width &&
                     y >= button.y && y <= button.y + button.height
@@ -654,7 +698,7 @@ const UserInterface = {
 
 
         this.renderedButtons.forEach(button => {
-            if (button.constructor.name == "Button" || button.constructor.name == "ToggleButton") { // only run on buttons not sliders
+            if (button.constructor.name == "Button") { // only run on buttons not sliders
                 if ( // if x and y touch is within button
                     x >= button.x && x <= button.x + button.width &&
                     y >= button.y && y <= button.y + button.height
@@ -684,21 +728,28 @@ const UserInterface = {
                         btn_exit_edit, 
                         btn_unselect, 
                         
-                        btn_x_plus, 
-                        btn_x_minus, 
-                        btn_y_plus, 
-                        btn_y_minus, 
-                        btn_width_plus, 
-                        btn_width_minus,
-                        btn_height_plus,
-                        btn_height_minus,
-                        btn_angle_plus,
-                        btn_angle_minus,
+                        btn_translate,
+                        btn_resize,
+                        btn_angleSlider,
+                        // btn_x_plus, 
+                        // btn_x_minus, 
+                        // btn_y_plus, 
+                        // btn_y_minus, 
+                        // btn_width_plus, 
+                        // btn_width_minus,
+                        // btn_height_plus,
+                        // btn_height_minus,
+                        // btn_angle_plus,
+                        // btn_angle_minus,
                         btn_wall,
 
                         btn_delete_platform
                     ]
                     
+                    // SYNC ALL BUTTONS AND SLIDERS
+                    btn_translate.func() // intially syncs the buttons position to the selected platform. Called whenever screen is scrolled too. not really needed here but avoids a 1 frame flash 
+                    btn_resize.func()
+                    btn_angleSlider.updateState(MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle)
                     btn_wall.func(true) // syncs the wall button's toggle state
                 }
             })
@@ -712,7 +763,7 @@ const UserInterface = {
             }
 
             if (clickedPlatform == false && clickedPlayer == false) {
-                btn_unselect.released(true);
+                // btn_unselect.released(true);
             }
         }
 
@@ -725,9 +776,15 @@ const UserInterface = {
         });
 
         if (this.gamestate == 1) { // In Main Menu
-            canvasArea.ctx.font = "80px sans-serif";
-            canvasArea.ctx.fillStyle = "#FFFFFF"; // WHITE
-            canvasArea.ctx.fillText("Null Hop", canvasArea.canvas.width/3.0, 120);
+            canvasArea.canvas.style.backgroundColor = "#a3d5e1";
+            document.body.style.backgroundColor = "#a3d5e1";
+  
+            const title = document.getElementById("title")
+            canvasArea.ctx.drawImage(title, canvasArea.canvas.width/2 - 150, 30, 300, (title.height / title.width) * 300)
+
+            const menu_background = document.getElementById("menu_background")
+            canvasArea.ctx.drawImage(menu_background, -30, 15, canvasArea.canvas.width + 60, (menu_background.height / menu_background.width) * canvasArea.canvas.width + 60)
+
         }
 
         if (this.gamestate == 3) { // In Settings
@@ -739,6 +796,12 @@ const UserInterface = {
         }
 
         if (this.gamestate == 6) { // In Level
+
+            canvasArea.ctx.font = "25px sans-serif";
+            canvasArea.ctx.fillStyle = "white";
+            canvasArea.ctx.fillText("Time: " + UserInterface.secondsToMinutes(this.timer), canvasArea.canvas.width - 230, 60)
+            canvasArea.ctx.fillText("Record: " + UserInterface.secondsToMinutes(map.record), canvasArea.canvas.width - 230, 90);
+
 
             if (this.debugText == 1) { // DRAWING DEBUG TEXT
                 const textX = canvasArea.canvas.width * 0.18; 
@@ -763,7 +826,6 @@ const UserInterface = {
                 canvasArea.ctx.fillText("wishDir: " + player.wishDir.x + ", " + player.wishDir.y, textX, 360)
 
             }
-    
     
             if (this.strafeHUD == 1) { // STRAFE OPTIMIZER HUD
                 
@@ -929,22 +991,27 @@ class Button {
 class SliderUI {
     confirmed = true;
 
-    constructor(x, y, width, min, max, label, variable, func) {
-        this.x = x;
-        this.y = y;
+    constructor(x, y, width, min, max, decimalDetail, label, labelColor, variable, func) {
+        this.x = eval(x);
+        this.y = eval(y);
         this.width = width;
         this.min = min;
         this.max = max;
+        this.decimalDetail = decimalDetail // 1 = whole numbers, 10 = 10ths place, 100 = 100ths place
         this.label = label;
+        this.labelColor = labelColor;
         this.value = variable;
         this.variableToControl = String(variable);
         this.func = func;
-        this.sliderX = x + width / ((max - min)/this.value);
+        this.sliderX = this.x + width / ((max - min)/this.value);
     }
 
     updateState(value) { // updates the button when its value is changed by external source
         this.value = value;
-        this.sliderX = this.x + this.width / ((this.max - this.min)/this.value);
+        // this.sliderX = this.x + this.width / ((this.max - this.min)/this.value);
+        this.sliderX = (this.value - this.min) * (this.x + this.width - this.x) / (this.max - this.min) + this.x;
+
+
     }
 
 
@@ -952,7 +1019,8 @@ class SliderUI {
         canvasArea.ctx.strokeStyle = "#BBBBBB";
         canvasArea.ctx.lineWidth = 8;
         canvasArea.ctx.lineCap = "round"
-        canvasArea.ctx.fillStyle = "#FFFFFF";
+        // canvasArea.ctx.fillStyle = "#FFFFFF";
+        canvasArea.ctx.fillStyle = this.labelColor;
         
         canvasArea.ctx.beginPath(); // Slider Line
         canvasArea.ctx.moveTo(this.x, this.y)
@@ -964,12 +1032,14 @@ class SliderUI {
         canvasArea.ctx.fill();
 
         canvasArea.ctx.font = "20px sans-serif";
-        canvasArea.ctx.fillStyle = "white";
+        canvasArea.ctx.fillStyle = this.labelColor;
         canvasArea.ctx.fillText(this.label + ": " + this.value, this.x, this.y - 30)
     }
 
     update() {
         if (touchHandler.dragging) { // User is touching the screen
+            
+
             if (Math.abs(touchHandler.touchX - this.sliderX) < 30 && Math.abs(touchHandler.touchY - this.y) < 30) {
                 
                 if (touchHandler.touchX > this.x && touchHandler.touchX < this.x + this.width) {
@@ -985,7 +1055,9 @@ class SliderUI {
                 // outmax = this.max
 
                 this.value = (this.sliderX - this.x) * (this.max - this.min) / (this.width) + this.min;
-                this.value = Math.round(this.value * 10) / 10;
+                this.value = Math.round(this.value * this.decimalDetail) / this.decimalDetail;
+                // this.value = Math.round(this.value / 10) * 10; // for snapping to nearest multiple of 10 
+
 
                 this.confirmed = false;
             }
@@ -1014,8 +1086,7 @@ const MapEditor = {
     screenY : 0,
     renderedPlatforms : [],
     selectedPlatformIndex : -1,
-    gizmoMidX : 0,
-    gizmoMidY : 0,
+    snapping : false,
 
     render : function() {
 
@@ -1065,7 +1136,6 @@ const MapEditor = {
             })
 
 
-
             ctx.fillRect(-5, -5, 10, 10) // (0,0) map origin
 
             // DRAWING THE PLAYER START
@@ -1100,52 +1170,35 @@ const MapEditor = {
 
 
 
-
             // MAP EDITOR UI
+            ctx.font = "15px sans-serif";
 
-            if (this.editorState == 2) { // DRAWING SIDE PANEL and gizmo for PLATFORM SELECTED AND EDITING
+
+            if (this.editorState == 2) { // DRAWING SIDE PANEL
             
                 // SIDE PANEL
                 ctx.fillStyle = "#FFFFFF"
-                ctx.fillRect(canvasArea.canvas.width - 200, 20, 180, 260)
+                ctx.fillRect(canvasArea.canvas.width - 220, 20, 200, 260)
 
 
-
-                // GIZMO
                 if (this.selectedPlatformIndex == -2) { // player is selected
                     
                     ctx.fillStyle = "#000000"
-                    ctx.fillText("Player Start", canvasArea.canvas.width - 190, 120);
-                    ctx.fillText("X: " + this.loadedMap.playerStart.x, canvasArea.canvas.width - 190, 140);
-                    ctx.fillText("Y: " + this.loadedMap.playerStart.y, canvasArea.canvas.width - 190, 160);
+                    ctx.fillText("Player Start", canvasArea.canvas.width - 200, 120);
+                    ctx.fillText("Position: " + this.loadedMap.playerStart.x + ", " + this.loadedMap.playerStart.y, canvasArea.canvas.width - 200, 140);
 
                     
-                    // this.gizmoMidY = this.loadedMap.playerStart.y + this.screenY
-                    // this.gizmoMidX = this.loadedMap.playerStart.x + this.screenX
-                
                 } else { // platform is selected
                     
                     ctx.fillStyle = "#000000"
-                    ctx.fillText("Platform", canvasArea.canvas.width - 190, 120);
-                    ctx.fillText("X: " + this.loadedMap.platforms[this.selectedPlatformIndex].x, canvasArea.canvas.width - 190, 140);
-                    ctx.fillText("Y: " + this.loadedMap.platforms[this.selectedPlatformIndex].y, canvasArea.canvas.width - 190, 160);
-
-                    ctx.fillText("Width: " + this.loadedMap.platforms[this.selectedPlatformIndex].width, canvasArea.canvas.width - 190, 180);
-                    ctx.fillText("Height: " + this.loadedMap.platforms[this.selectedPlatformIndex].height, canvasArea.canvas.width - 190, 200);
-
-                    ctx.fillText("Angle: " + this.loadedMap.platforms[this.selectedPlatformIndex].angle, canvasArea.canvas.width - 190, 220)
-
-                    ctx.fillText("Wall: " + (this.loadedMap.platforms[this.selectedPlatformIndex].wall?"Yes":"No"), canvasArea.canvas.width - 190, 240)
-
-
-                    // this.gizmoMidX = this.loadedMap.platforms[this.selectedPlatformIndex].x + this.loadedMap.platforms[this.selectedPlatformIndex].width/2 + this.screenX
-                    // this.gizmoMidY = this.loadedMap.platforms[this.selectedPlatformIndex].y + this.loadedMap.platforms[this.selectedPlatformIndex].height/2 + this.screenY
+                    ctx.fillText("Platform", canvasArea.canvas.width - 200, 120);
+                    ctx.fillText("Position: " + this.loadedMap.platforms[this.selectedPlatformIndex].x + ", " + this.loadedMap.platforms[this.selectedPlatformIndex].y, canvasArea.canvas.width - 200, 140);
+                    ctx.fillText("Size: " + this.loadedMap.platforms[this.selectedPlatformIndex].width + ", " + this.loadedMap.platforms[this.selectedPlatformIndex].height, canvasArea.canvas.width - 200, 160);
+                    ctx.fillText("Wall: " + (this.loadedMap.platforms[this.selectedPlatformIndex].wall?"Yes":"No"), canvasArea.canvas.width - 200, 240)
+  
                 }
-
-                // ctx.fillRect(this.gizmoMidX, this.gizmoMidY, 10, 10)
-            
+                
             }
-
 
 
             // GENERAL MAP EDITOR DEBUG TEXT
@@ -1184,10 +1237,12 @@ const MapEditor = {
 
         if (this.editorState == 1 || this.editorState == 2) { // main map edit screen OR platform select screen
 
-            // SCROLLING THE SCREEN
+            // SCROLLING THE SCREEN or USING THE GIZMO
             if (touchHandler.dragging == 1) {
-                this.scrollX_vel += touchHandler.dragAmountX
-                this.scrollY_vel += touchHandler.dragAmountY
+                if (!btn_translate.isPressed && !btn_resize.isPressed && btn_angleSlider.confirmed) {
+                    this.scrollX_vel += touchHandler.dragAmountX
+                    this.scrollY_vel += touchHandler.dragAmountY
+                }                
             }
 
             this.screenX += this.scrollX_vel / 10;
@@ -1216,6 +1271,13 @@ const MapEditor = {
             });
 
 
+        }
+
+        if (this.editorState == 2) {
+            if (this.selectedPlatformIndex != -1 && this.selectedPlatformIndex != -2) {
+                btn_translate.func() // either uses the gizmo or updates its position or both
+                btn_resize.func() // either uses the gizmo or updates its position or both
+            }
         }
 
         if (this.editorState == 1 && this.selectedPlatformIndex !== -1) {
@@ -1760,7 +1822,7 @@ class Map {
         });
     }
 
-    update() {  // Figure out which platforms are in view. 
+    update() {  // Figure out which platforms are in view + renderQueue
                 // This is probably were I should check endZoneIsRendered but it's done in render(). Saves an if statement i guess...
                 // ALSO where player is slotted into RenderQueue (z-order is determined)
 
@@ -2089,10 +2151,13 @@ class Map {
         
 
         // Centered Axis
-        // ctx.fillStyle = "lime"
-        // ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope), player.y, 5, 5)
-        // ctx.fillStyle = "green"
-        // ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope), player.y, 5, 5)
+        if (platform.angle == 20){
+
+            ctx.fillStyle = "lime"
+            ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.horizontalSlope), player.y, 5, 5)
+            ctx.fillStyle = "green"
+            ctx.fillRect(platform.x + platform.width/2 + ((player.y - (platform.y + platform.height/2)) / platform.verticalSlope), player.y, 5, 5)
+        }
         
 
         // DRAWING WALL Z-ORDER DEBUG POINTS (CORNERS)
@@ -2157,6 +2222,8 @@ class Map {
 
 
         this.checkpoints.forEach(checkpoint => { // draw line to show checkpoint triggers
+            ctx.strokeStyle = "white"
+            ctx.lineWidth = 4
             ctx.beginPath(); 
             ctx.moveTo(checkpoint.triggerX1, checkpoint.triggerY1);
             ctx.lineTo(checkpoint.triggerX2, checkpoint.triggerY2);
@@ -2265,9 +2332,6 @@ class InputHandler {
                 UserInterface.touchReleased(e.changedTouches[i].pageX, e.changedTouches[i].pageY); // sends touchRealease for every release
 
             }
-
-
-
         });
     }
 
