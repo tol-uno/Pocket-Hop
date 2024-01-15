@@ -15,12 +15,10 @@
         "backgroundColor": "#131b25",
         "shadowColor": "#00000040",
         "playerColor": "rgba(233,247,255,1)",
-
         "platformHeight": 80,
-
         "lightAngle": -25,
-        "shadowContrastLight": -0.001,
-        "shadowContrastDark": -0.8,
+        "shadowContrastLight": -0.01,
+        "shadowContrastDark": -0.9,
         "shadowLength": 100
     },
 
