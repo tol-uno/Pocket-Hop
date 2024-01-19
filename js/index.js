@@ -147,12 +147,43 @@ const canvasArea = { //Canvas Object
     },
 
 
+    RGBToHSL: function (r, g, b, a) {
+        r /= 255
+        g /= 255
+        b /= 255
+        a /= 255
+
+        let max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+    
+        if(max == min){
+            h = s = 0; // achromatic
+        }else{
+            let d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch(max){
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+    
+        return [
+            Math.round(h*360),
+            Math.round(s*100),
+            Math.round(l*100),
+            Math.round(a * 100) / 100
+        ];
+    },
+
+
     calculateShadedColor(sideNormalVector, color) {
         let lightAngleVector;
         let shadowContrastLight;
         let shadowContrastDark;
 
-        if (typeof map !== "undefined") { // if map is loaded or in PreviewWindow
+        if (UserInterface.gamestate == 5 || UserInterface.gamestate == 6) {
             lightAngleVector = map.style.lightAngleVector
             shadowContrastLight = map.style.shadowContrastLight
             shadowContrastDark = map.style.shadowContrastDark
@@ -259,6 +290,7 @@ const UserInterface = {
         })
 
 
+
         // SETTINGS Buttons 
         btn_reset_settings = new Button("canvasArea.canvas.width - 150", "canvasArea.canvas.height - 150", 80, "reset_button", "reset_button_pressed", 0, function() {
             window.localStorage.removeItem("record_original") // loop through all maps here
@@ -327,6 +359,7 @@ const UserInterface = {
                 }
             }
         })
+
 
 
         // MAP EDITOR BUTTONS
@@ -511,15 +544,16 @@ const UserInterface = {
         })
 
         btn_map_colors = new Button("canvasArea.canvas.width - 400", "20", 125, "map_colors_button", "map_colors_button_pressed", 0, function() {
-            MapEditor.editorState = 3 // map settings
+            MapEditor.editorState = 3 // map colors
             
-            PreviewWindow.update(PreviewWindow.platform)
             PreviewWindow.update(PreviewWindow.wall)
             PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
 
 
             UserInterface.renderedButtons = [
                 btn_mainMenu, 
+                btn_setFromHex,
                 btn_hueSlider, 
                 btn_saturationSlider, 
                 btn_lightnessSlider, 
@@ -539,23 +573,53 @@ const UserInterface = {
             // btn_mainMenu.resize()
         })
 
+        btn_map_settings = new Button("canvasArea.canvas.width - 550", "20", 125, "map_settings_button", "map_settings_button_pressed", 0, function() {
+            MapEditor.editorState = 4 // map settings
+            
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+
+            btn_platformHeightSlider.updateState(MapEditor.loadedMap.style.platformHeight) // value is set to 0 before we're in MapEditor
+            btn_wallHeightSlider.updateState(MapEditor.loadedMap.style.wallHeight)
+            btn_lightAngleSlider.updateState(MapEditor.loadedMap.style.lightAngle)
+            btn_shadowContrastLightSlider.updateState(MapEditor.loadedMap.style.shadowContrastLight)
+            btn_shadowContrastDarkSlider.updateState(MapEditor.loadedMap.style.shadowContrastDark)
+            btn_shadowLengthSlider.updateState(MapEditor.loadedMap.style.shadowLength)
+
+            UserInterface.renderedButtons = [
+                btn_mainMenu, 
+                btn_platformHeightSlider,
+                btn_wallHeightSlider,
+                btn_lightAngleSlider,
+                btn_shadowContrastLightSlider,
+                btn_shadowContrastDarkSlider,
+                btn_shadowLengthSlider
+            ];
+        })
+
         btn_unselect = new Button("canvasArea.canvas.width - 210", "25", 60, "x_button", "x_button_pressed", 0, function() {
             
             MapEditor.selectedPlatformIndex = -1; // No selected platform
-            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors]
+            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings]
         })
 
         btn_translate = new Button(0, 0, 45, "translate_button", "translate_button_pressed", 0, function() {
-            let platform = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex]
+            let platform;
+
+            if (MapEditor.selectedPlatformIndex == -2) { // if selected playerStart
+                platform = MapEditor.loadedMap.playerStart
+            } else { // selected platform
+                platform = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex]
+            } 
             
             if (this.isPressed) {
                 platform.x += touchHandler.dragAmountX
                 platform.y += touchHandler.dragAmountY
             }
 
-            this.x =  MapEditor.screenX + platform.x + platform.width/2 - this.width/2
-            this.y =  MapEditor.screenY + platform.y + platform.height/2 - this.height/2
-            
+            this.x =  MapEditor.screenX + platform.x + (platform.width ? platform.width/2 : 32) - this.width/2
+            this.y =  MapEditor.screenY + platform.y + (platform.height ? platform.height/2 : 32) - this.height/2
         })
 
         btn_resize = new Button(0, 0, 35, "translate_button", "translate_button_pressed", 0, function() {
@@ -584,8 +648,12 @@ const UserInterface = {
             
         })
 
-        btn_angleSlider = new SliderUI("canvasArea.canvas.width - 205", "205", 170, -50, 50, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex] : 0, function() { 
+        btn_angleSlider = new SliderUI("canvasArea.canvas.width - 205", "205", 170, -50, 50, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex] : 0, function() {
             MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle = this.value
+        })
+
+        btn_playerAngleSlider = new SliderUI("canvasArea.canvas.width - 205", "205", 170, 0, 360, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.playerStart : 0, function() {
+            MapEditor.loadedMap.playerStart.angle = this.value
         })
 
         btn_wall = new Button("canvasArea.canvas.width - 90", "225", 40, "checkbox", "checkbox_pressed", 1, function(sync) { 
@@ -608,12 +676,68 @@ const UserInterface = {
             
             MapEditor.loadedMap.platforms.splice(MapEditor.selectedPlatformIndex, 1)
             MapEditor.selectedPlatformIndex = -1; // No selected platform
-            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors]
+            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_colors]
             
         })
 
 
+
+        // MAP SETTINGS SLIDERS
+        btn_platformHeightSlider = new SliderUI("160", "70", 300, 0, 150, 1, "Platform Height", "white", MapEditor.loadedMap ? MapEditor.loadedMap.style.platformHeight : 0, function() { 
+            MapEditor.loadedMap.style.platformHeight = this.value
+
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+        })
+
+        btn_wallHeightSlider = new SliderUI("160", "150", 300, 0, 150, 1, "Wall Height", "white", MapEditor.loadedMap ? MapEditor.loadedMap.style.wallHeight : 0, function() { 
+            MapEditor.loadedMap.style.wallHeight = this.value
+
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+        })
+
+        btn_lightAngleSlider = new SliderUI("canvasArea.canvas.width - 400", "70", 360, 0, 360, 1, "Light Angle", "white", MapEditor.loadedMap ? MapEditor.loadedMap.style.lightAngle : 0, function() { 
+            MapEditor.loadedMap.style.lightAngle = this.value
+
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+        })
+
+        btn_shadowContrastLightSlider = new SliderUI("canvasArea.canvas.width - 400", "150", 360, -1, 0, 1000, "Shadow Contrast Light", "white", MapEditor.loadedMap ? MapEditor.loadedMap.style.shadowContrastLight : 0, function() { 
+            MapEditor.loadedMap.style.shadowContrastLight = this.value
+
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+        })
+
+        btn_shadowContrastDarkSlider = new SliderUI("canvasArea.canvas.width - 400", "220", 360, -1, 0, 1000, "Shadow Contrast Dark", "white", MapEditor.loadedMap ? MapEditor.loadedMap.style.shadowContrastDark : 0, function() { 
+            MapEditor.loadedMap.style.shadowContrastDark = this.value
+
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+        })
+
+        btn_shadowLengthSlider = new SliderUI("canvasArea.canvas.width - 400", "290", 360, 0, 150, 1, "Shadow Length", "white", MapEditor.loadedMap ? MapEditor.loadedMap.style.shadowLength : 0, function() { 
+            MapEditor.loadedMap.style.shadowLength = this.value
+
+            PreviewWindow.update(PreviewWindow.wall)
+            PreviewWindow.update(PreviewWindow.endzone)
+            PreviewWindow.update(PreviewWindow.platform)
+        })
+
+
+
         // COLOR PICKER BUTTONS AND SLIDERS
+        btn_setFromHex = new Button("ColorPicker.x + 262", "ColorPicker.y + 32", 50, "set_button", "set_button_pressed", 0, function() {
+            ColorPicker.setFromHex()
+        })
+
         btn_hueSlider = new SliderUI("ColorPicker.x", "ColorPicker.y + 130", 300, 0, 360, 1, "Hue", "gray", ColorPicker.h, function() { 
             ColorPicker.h = this.value
             ColorPicker.start()
@@ -633,6 +757,7 @@ const UserInterface = {
             ColorPicker.a = this.value
             ColorPicker.start()
         })
+
 
 
         // SET COLOR BUTTONS
@@ -732,11 +857,12 @@ const UserInterface = {
         })
 
 
+
         // IN LEVEL Buttons
         btn_mainMenu = new Button(40, 40, 80, "back_button", "back_button_pressed", 0, function() { 
-            if (UserInterface.gamestate == 7 && MapEditor.editorState == 3) { // in map settings page and in map editor
+            if (UserInterface.gamestate == 7 && (MapEditor.editorState == 3 || MapEditor.editorState == 4)) { // in map settings/color pages and in map editor
 
-                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors] // btn_add_checkpoint, btn_map_colors
+                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings] // btn_add_checkpoint
                 MapEditor.editorState = 1 // might need to do more here - like deselect platforms and shit
 
             } else {
@@ -775,7 +901,7 @@ const UserInterface = {
 
     update : function() {
         
-        if (this.gamestate == 3 || MapEditor.editorState == 2 || MapEditor.editorState == 3) { // in setting page or in map editor
+        if (this.gamestate == 3 || MapEditor.editorState == 2 || MapEditor.editorState == 3 || MapEditor.editorState == 4) { // in settings page or in map editor pages
             this.renderedButtons.forEach(button => { // LOOP RENDERED BUTTONS
                 if (button.constructor.name == "SliderUI") { // run .update() for only Sliders
                     button.update();
@@ -855,7 +981,7 @@ const UserInterface = {
         });
 
 
-        // test if released within the edit platform panel. if so, say a button was pressed so it doesnt select platform underneath
+        // test if released within the edit platform panel
         // needs to be matched with MapEditor.render() values
         //canvasArea.canvas.width - 220, 20, 200, 260
         if (
@@ -867,10 +993,9 @@ const UserInterface = {
         }
 
 
-
         // DEALING WITH MAP EDITOR: Clicking player, clicking platforms
-        // IF IN MAP EDITOR but not in map select screen within editor OR in map settings screen
-        if (clickedSidePanel == false && this.gamestate == 7 && MapEditor.editorState != 0 && MapEditor.editorState != 3) { 
+        // IF IN MAP EDITOR but not in map select screen within editor OR in map settings/color screen
+        if (clickedSidePanel == false && this.gamestate == 7 && MapEditor.editorState != 0 && MapEditor.editorState != 3 && MapEditor.editorState != 4) { 
             
             MapEditor.renderedPlatforms.forEach(platform => {
                 if (// if x and y touch is within platform (NOT ROTATED THOUGH)
@@ -903,6 +1028,17 @@ const UserInterface = {
                 y >= MapEditor.loadedMap.playerStart.y + MapEditor.screenY - 16 && y <= MapEditor.loadedMap.playerStart.y + 16 + MapEditor.screenY
             ) {
                 MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own variable
+                this.renderedButtons = [
+                    btn_exit_edit, 
+                    btn_unselect, 
+                    
+                    btn_translate,
+                    btn_playerAngleSlider,
+                ]
+
+                // SYNC ALL BUTTONS AND SLIDERS
+                btn_translate.func() // intially syncs the buttons position to the selected platform. Called whenever screen is scrolled too. not really needed here but avoids a 1 frame flash 
+                btn_playerAngleSlider.updateState(MapEditor.loadedMap.playerStart.angle)
             }
         }
     },
@@ -1079,8 +1215,13 @@ class Button {
     }
 
     render() {
-    
 
+        canvasArea.ctx.save()
+        canvasArea.ctx.shadowColor = "#44444444"
+        canvasArea.ctx.shadowOffsetX = 3
+        canvasArea.ctx.shadowOffsetY = 3
+
+        
         if (this.image == null) { // should remove once all images are added
 
             if (this.toggle == 1 || this.isPressed) {
@@ -1103,6 +1244,8 @@ class Button {
                 canvasArea.ctx.drawImage(this.image, this.x, this.y, this.width, this.width * (this.image.height / this.image.width)); // end part here maintains aspect ratio
             }
         }
+
+        canvasArea.ctx.restore()
 
 
      
@@ -1215,13 +1358,17 @@ class SliderUI {
 
 
 const PreviewWindow = {
-    x : 40,
+
+    // update() is called by buttons
+    // render() is called in MapEditor.render()
+
+    x : 40, // kinda weird to use these now that its a full screen window
     y : 160,
 
     // OBJECTS TO DRAW
     platform : {
-        "x": 50,
-        "y": 50,
+        "x": 130,
+        "y": 125,
         "width": 70,
         "height": 70,
         "angle": 45,
@@ -1230,23 +1377,30 @@ const PreviewWindow = {
     },
 
     wall : {
-        "x": 100,
-        "y": 200,
+        "x": 45,
+        "y": 60,
         "width": 50,
-        "height": 50,
+        "height": 100,
         "angle": 45,
         "endzone": 0,
         "wall": 1
     },
 
     endzone : {
-        "x": 0,
-        "y": 100,
+        "x": 215,
+        "y": 60,
         "width": 50,
         "height": 50,
-        "angle": 20,
+        "angle": 45,
         "endzone": 1,
         "wall": 0
+    },
+
+    player : {
+        "x" : 165,
+        "y" : 148,
+        "angle" : 45,
+        "jumpValue" : 29
     },
 
 
@@ -1280,7 +1434,7 @@ const PreviewWindow = {
 
         // SHADOW POLYGON
         const angleRad = platform.angle * (Math.PI/180);
-        const wallShadowMultiplier = platform.wall ? (MapEditor.loadedMap.style.wallHeight + MapEditor.loadedMap.style.platformHeight) / MapEditor.loadedMap.style.platformHeight : 1 // makes sure shadows are longer for taller walls
+        const wallShadowMultiplier = platform.wall ? (1 + (MapEditor.loadedMap.style.wallHeight / MapEditor.loadedMap.style.platformHeight)) : 1;
 
         platform.shadowPoints = [ // ALL THE POSSIBLE POINTS TO INPUT IN CONVEX HULL FUNCTION
         
@@ -1366,13 +1520,28 @@ const PreviewWindow = {
         const ctx = canvasArea.ctx
 
         // WINDOW
-        ctx.strokeStyle = "black"
         ctx.fillStyle = MapEditor.loadedMap.style.backgroundColor
-        ctx.fillRect(this.x, this.y, 300, 245)
-        ctx.strokeRect(this.x, this.y, 300, 245)
-        
+        ctx.fillRect(0,0,canvasArea.canvas.width, canvasArea.canvas.height)
 
         // RENDER FUNCTION FOR PLATFORM, WALL, and ENDZONE
+        function renderPreviewItemShadow(platform) {
+            ctx.save();
+            ctx.translate(PreviewWindow.x + platform.x + platform.width/2, PreviewWindow.y + platform.y + platform.height/2);
+
+            ctx.fillStyle = MapEditor.loadedMap.style.shadowColor;
+
+            ctx.beginPath();
+            
+            ctx.moveTo(platform.shadowPoints[0][0], platform.shadowPoints[0][1]);
+            for (let i = platform.shadowPoints.length - 1; i > 0; i --) {
+                ctx.lineTo(platform.shadowPoints[i][0], platform.shadowPoints[i][1]);
+            }
+
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
 
         function renderPreviewItem(platform) {
             
@@ -1449,20 +1618,116 @@ const PreviewWindow = {
             ctx.restore(); // resets back from platform local space. player view space??
         
         
-        } // end of drawPreviewItem
+        } 
 
+        renderPreviewItemShadow(this.wall)
+        renderPreviewItemShadow(this.endzone)
+        renderPreviewItemShadow(this.platform)
 
-
-        renderPreviewItem(this.platform)
         renderPreviewItem(this.wall)
         renderPreviewItem(this.endzone)
-
+        renderPreviewItem(this.platform)
 
 
         // DRAW PLAYER
-        ctx.fillStyle = MapEditor.loadedMap.style.playerColor
-        ctx.fillRect(this.x + 50, this.y + 50, 32, 32)
+        // Shadow
+        ctx.save()
+        ctx.translate(PreviewWindow.x + this.player.x, PreviewWindow.y + this.player.y)
+        
+        ctx.rotate(this.player.angle * Math.PI/180)
 
+        ctx.fillStyle = MapEditor.loadedMap.style.shadowColor;
+        ctx.fillRect(-15, -15, 30, 30)
+        
+        ctx.restore() // player translation and rotation
+
+        
+        // DRAWING PLAYER TOP
+        ctx.save()
+        ctx.translate(PreviewWindow.x + this.player.x, PreviewWindow.y + this.player.y - this.player.jumpValue - 32); 
+        ctx.rotate(this.player.angle * Math.PI/180) // rotating canvas
+        ctx.fillStyle = MapEditor.loadedMap.style.playerColor;
+        ctx.fillRect(-16,-16,32,32)
+        
+        // Draw players top arrow
+        ctx.strokeStyle = "#00000030";
+        ctx.lineWidth = 2
+        
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-5, -7);
+        ctx.lineTo(-5, 7);
+        ctx.lineTo(8, 0)
+        ctx.stroke();
+        
+        ctx.restore() // player translation and rotation
+        
+
+        // SIDES OF PLAYER
+        ctx.save();
+        
+        const angleRad = this.player.angle * (Math.PI/180);
+        const loopedAngle = this.player.angle;
+        
+        const originX = PreviewWindow.x + this.player.x
+        const originY = PreviewWindow.y + this.player.y
+
+        // GETTING CORNERS
+        if (loopedAngle > 270 || loopedAngle < 90) { // BOT WALL
+
+            const sideVector = new Vector(0,1).rotate(this.player.angle)
+            ctx.fillStyle = canvasArea.calculateShadedColor(sideVector, MapEditor.loadedMap.style.playerColor)
+
+            ctx.beginPath();
+            ctx.moveTo(originX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - this.player.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - this.player.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        if (0 < loopedAngle && loopedAngle < 180) { // RIGHT WALL
+
+            const sideVector = new Vector(1,0).rotate(this.player.angle)
+            ctx.fillStyle = canvasArea.calculateShadedColor(sideVector, MapEditor.loadedMap.style.playerColor)
+
+            ctx.beginPath();
+            ctx.moveTo(originX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - this.player.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX + (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - this.player.jumpValue + (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        if (90 < loopedAngle && loopedAngle < 270) { // TOP WALL
+            
+            const sideVector = new Vector(0,-1).rotate(this.player.angle)
+            ctx.fillStyle = canvasArea.calculateShadedColor(sideVector, MapEditor.loadedMap.style.playerColor)            
+
+            ctx.beginPath();
+            ctx.moveTo(originX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX + (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - this.player.jumpValue + (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - this.player.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        if (180 < loopedAngle && loopedAngle < 360) { // LEFT WALL
+            
+            const sideVector = new Vector(-1,0).rotate(this.player.angle)
+            ctx.fillStyle = canvasArea.calculateShadedColor(sideVector, MapEditor.loadedMap.style.playerColor)            
+
+            ctx.beginPath();
+            ctx.moveTo(originX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - 32 - this.player.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX - (16 * Math.cos(angleRad) + (16 * Math.sin(angleRad))), originY - this.player.jumpValue - (16 * Math.sin(angleRad) - (16 * Math.cos(angleRad))));
+            ctx.lineTo(originX - (16 * Math.cos(angleRad) - (16 * Math.sin(angleRad))), originY - this.player.jumpValue - (16 * Math.sin(angleRad) + (16 * Math.cos(angleRad))));
+            ctx.closePath();
+            ctx.fill();
+        }
     }
 }
 
@@ -1496,13 +1761,6 @@ const ColorPicker = {
         this.saturationGradient = ctx.createLinearGradient(this.x, 0, this.width + this.x, 0)
         this.lightnessGradient = ctx.createLinearGradient(this.x, 0, this.width + this.x, 0)
         this.alphaGradient = ctx.createLinearGradient(this.x, 0, this.width + this.x, 0)
-
-
-        // testing gradient
-        // this.hueGradient.addColorStop(0, "black")
-        // this.hueGradient.addColorStop(0.01, "white")
-        // this.hueGradient.addColorStop(0.99, "black")
-        // this.hueGradient.addColorStop(0.99, "white")
 
 
         // HUE BAR
@@ -1586,6 +1844,7 @@ const ColorPicker = {
 
         ctx.fillStyle = "black"
         ctx.fillText(this.rgbaValue, this.x + 160, this.y + 10)
+        ctx.fillText("Use Hex Color", this.x + 160, this.y + 50)
 
         ctx.fillStyle = this.hueGradient
         ctx.fillRect(this.x, this.y + 105, this.width, this.height)
@@ -1598,19 +1857,50 @@ const ColorPicker = {
 
         ctx.fillStyle = this.alphaGradient
         ctx.fillRect(this.x, this.y + 315, this.width, this.height)
-        // ctx.strokeRect(this.x, this.y + 315, this.width, this.height)
 
     },
 
     getColor : function() {
         return canvasArea.HSLToRGB(this.h, this.s, this.l, this.a)
         // return "hsla(" + this.h + ", " + this.s + "%, " + this.l + "%, " + this.a + ")"
-    } 
+    },
+
+    setFromHex : function() {
+        const color = prompt("Enter Hex Color. #RRGGBB or #RRGGBBAA");
+
+        // https://stackoverflow.com/questions/8027423/how-to-check-if-a-string-is-a-valid-hex-color-representation
+        const regEx = /^#[0-9A-F]{6}[0-9a-f]{0,2}$/i
+        if (regEx.test(color)) { // is a valid color. convert to rgb then hsl
+
+            const r = parseInt(color.substring(1,3), 16); // Grab the hex representation of red (chars 1-2) and convert to decimal (base 10).
+            const g = parseInt(color.substring(3,5), 16);
+            const b = parseInt(color.substring(5,7), 16);
+            const a = color.length < 9 ? 255 : parseInt(color.substring(7,9), 16); // if transparency isnt declared then a = 255
+
+            console.log([r,g,b,a])
+            console.log(canvasArea.RGBToHSL(r,g,b,a))
+
+            const hslaValue = canvasArea.RGBToHSL(r,g,b,a)
+
+            this.h = hslaValue[0]
+            this.s = hslaValue[1]
+            this.l = hslaValue[2]
+            this.a = hslaValue[3]
+
+            btn_hueSlider.updateState(this.h)
+            btn_saturationSlider.updateState(this.s)
+            btn_lightnessSlider.updateState(this.l)
+            btn_alphaSlider.updateState(this.a)
+
+            this.start()
+            
+        } else {alert("Not A Hex Color. Use #RRGGBB or #RRGGBBAA")}
+    }
 }
 
 
 const MapEditor = {
-    editorState : 0, // 0 = map select screen, 1 = main map edit screen, 2 = platform edit menu, 3 = map settings page
+    editorState : 0, // 0 = map select screen, 1 = main map edit screen, 2 = platform edit menu, 3 = map color page, 4 = map settings page
     loadedMap : null,
     scrollX_vel : 0, // for smooth scrolling 
     scrollY_vel : 0,
@@ -1734,8 +2024,8 @@ const MapEditor = {
             }
 
             if (this.editorState == 3) { // IN COLOR SETTINGS 
-                ColorPicker.render()
                 PreviewWindow.render()
+                ColorPicker.render()
                 // PreviewWindow update is called by buttons
 
                 canvasArea.ctx.fillStyle = "black"
@@ -1748,9 +2038,13 @@ const MapEditor = {
                 canvasArea.ctx.fillText("End Zone Top",canvasArea.canvas.width-200, 280)
                 canvasArea.ctx.fillText("End Zone Side",canvasArea.canvas.width-200, 320)
                 canvasArea.ctx.fillText("Shadow",canvasArea.canvas.width-200, 360)
-
             }
 
+
+            if (this.editorState == 4) { // IN MAP SETTINGS 
+                PreviewWindow.render()
+                // PreviewWindow update is called by buttons
+            }
 
 
             if (this.debugText) {
@@ -1781,7 +2075,7 @@ const MapEditor = {
                 canvasArea.canvas.style.backgroundColor = this.loadedMap.style.backgroundColor; // set bg color here so it only triggers once not every render frame
                 document.body.style.backgroundColor = this.loadedMap.style.backgroundColor;
 
-                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors] // btn_add_checkpoint, btn_map_colors
+                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings] // btn_add_checkpoint
 
                 this.screenX = -this.loadedMap.playerStart.x + canvasArea.canvas.width/2;
                 this.screenY = -this.loadedMap.playerStart.y + canvasArea.canvas.height/2;
@@ -1794,7 +2088,7 @@ const MapEditor = {
 
             // SCROLLING THE SCREEN OR USING THE GIZMO's buttons/slider
             if (touchHandler.dragging == 1) {
-                if (!btn_translate.isPressed && !btn_resize.isPressed && btn_angleSlider.confirmed) {
+                if (!btn_translate.isPressed && !btn_resize.isPressed && btn_angleSlider.confirmed && btn_playerAngleSlider.confirmed) {
                     this.scrollX_vel += touchHandler.dragAmountX
                     this.scrollY_vel += touchHandler.dragAmountY
                 }
@@ -1836,10 +2130,12 @@ const MapEditor = {
 
 
 
-        if (this.editorState == 2) {
-            if (this.selectedPlatformIndex != -1 && this.selectedPlatformIndex != -2) {
-                btn_translate.func() // updates these buttons 
-                btn_resize.func()
+        if (this.editorState == 2) { // update translate and resize buttons every frame
+            if (this.selectedPlatformIndex != -1) {
+                btn_translate.func() 
+                if (this.selectedPlatformIndex != -2) { // resize isnt needed when playerStart selected
+                    btn_resize.func()
+                }
             }
         }
 
@@ -2091,8 +2387,6 @@ class Map {
     upperShadowClip = new Path2D();
     behindWallClip = new Path2D();
     endZone;
-
-
 
 
     constructor(name) {
@@ -2734,7 +3028,6 @@ class Map {
         ctx.rotate(player.lookAngle.getAngle() * Math.PI/180); // rotating canvas
 
         ctx.fillStyle = this.style.shadowColor;
-        // ctx.fillStyle = "green";
         // const blurValue = player.jumpValue / 16 + 1
         // ctx.filter = "blur(" + blurValue + "px)";
         ctx.fillRect(-15, -15, 30, 30)
@@ -2984,7 +3277,7 @@ class Player {
         ctx.strokeStyle = "#00000000"; // resetting border stroke
         ctx.lineWidth = 1
 
-        
+
         // draw border
         ctx.beginPath();
         ctx.rect(-16,-16,32,32)
