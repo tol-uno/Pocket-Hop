@@ -438,7 +438,7 @@ const UserInterface = {
 
         })
 
-        btn_exit_edit = new Button("20", "20", 150, 50, "Save and Exit", 0, function() {
+        btn_exit_edit = new Button("20", "20", 75, "back_button", "back_button_pressed", 0, function() {
 
             const map = MapEditor.loadedMap;
 
@@ -534,13 +534,29 @@ const UserInterface = {
 
             MapEditor.loadedMap.platforms.push(newPlatform);
             MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.length - 1;
-            UserInterface.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform, btn_translate, btn_resize, btn_angleSlider, btn_wall]
+            UserInterface.renderedButtons = [btn_exit_edit, btn_unselect, btn_delete_platform, btn_translate, btn_resize, btn_angleSlider, btn_wall, btn_snappingSlider]
             
             // SYNC ALL BUTTONS AND SLIDERS
             btn_translate.func() // intially syncs the buttons position to the selected platform. Called whenever screen is scrolled too. not really needed here but avoids a 1 frame flash 
             btn_resize.func()
             btn_angleSlider.updateState(MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle)
             btn_wall.func(true) // syncs the wall button's toggle state
+        })
+
+        btn_add_checkpoint = new Button("canvasArea.canvas.width - 290", "120", 250, "cp_button", "cp_button_pressed", 0, function() {
+            const middleX = Math.round(-MapEditor.screenX + canvasArea.canvas.width/2)
+            const middleY = Math.round(-MapEditor.screenY + canvasArea.canvas.height/2)
+            const newCheckPoint = {
+                "triggerX1": middleX - 100,
+                "triggerY1": middleY,
+                "triggerX2": middleX + 100,
+                "triggerY2": middleY,
+                "x": middleX,
+                "y": middleY + 50,
+                "angle": 270
+            }
+
+            MapEditor.loadedMap.checkpoints.push(newCheckPoint);
         })
 
         btn_map_colors = new Button("canvasArea.canvas.width - 400", "20", 125, "map_colors_button", "map_colors_button_pressed", 0, function() {
@@ -598,28 +614,84 @@ const UserInterface = {
             ];
         })
 
+        btn_snappingSlider = new SliderUI("50", "canvasArea.canvas.height - 50", 170, 0, 50, 0.2, "Snapping", "white", MapEditor.loadedMap ? MapEditor.snapAmount : 0, function() {
+            MapEditor.snapAmount = this.value
+        })
+
         btn_unselect = new Button("canvasArea.canvas.width - 210", "25", 60, "x_button", "x_button_pressed", 0, function() {
             
             MapEditor.selectedPlatformIndex = -1; // No selected platform
-            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings]
+            MapEditor.selectedCheckpointIndex = [-1,1]; // No selected checkpoint
+            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_add_checkpoint, btn_map_colors, btn_map_settings, btn_snappingSlider]
         })
 
         btn_translate = new Button(0, 0, 45, "translate_button", "translate_button_pressed", 0, function() {
-            let platform;
-
-            if (MapEditor.selectedPlatformIndex == -2) { // if selected playerStart
-                platform = MapEditor.loadedMap.playerStart
-            } else { // selected platform
-                platform = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex]
-            } 
             
-            if (this.isPressed) {
-                platform.x += touchHandler.dragAmountX
-                platform.y += touchHandler.dragAmountY
+            if (MapEditor.selectedPlatformIndex != -1) { // platform selected
+                let platform;
+    
+                if (MapEditor.selectedPlatformIndex == -2) { // if selected playerStart
+                    platform = MapEditor.loadedMap.playerStart
+                } else { // selected platform
+                    platform = MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex]
+                }
+                
+                if (this.isPressed) {
+                    platform.x += touchHandler.dragAmountX
+                    platform.y += touchHandler.dragAmountY
+                } else if (MapEditor.snapAmount > 0) {
+                    platform.x = Math.round(platform.x / MapEditor.snapAmount) * MapEditor.snapAmount
+                    platform.y = Math.round(platform.y / MapEditor.snapAmount) * MapEditor.snapAmount
+                }
+
+                this.x =  MapEditor.screenX + platform.x + (platform.width ? platform.width/2 : 32) - this.width/2
+                this.y =  MapEditor.screenY + platform.y + (platform.height ? platform.height/2 : 32) - this.height/2
             }
 
-            this.x =  MapEditor.screenX + platform.x + (platform.width ? platform.width/2 : 32) - this.width/2
-            this.y =  MapEditor.screenY + platform.y + (platform.height ? platform.height/2 : 32) - this.height/2
+            if (MapEditor.selectedCheckpointIndex[0] != -1) { // checkpoint selected
+                
+                const checkpoint = MapEditor.loadedMap.checkpoints[MapEditor.selectedCheckpointIndex[0]]
+                
+                if (MapEditor.selectedCheckpointIndex[1] == 1) {
+                    if (this.isPressed) {
+                        checkpoint.triggerX1 += touchHandler.dragAmountX
+                        checkpoint.triggerY1 += touchHandler.dragAmountY
+                    } else if (MapEditor.snapAmount > 0) {
+                        checkpoint.triggerX1 = Math.round(checkpoint.triggerX1 / MapEditor.snapAmount) * MapEditor.snapAmount
+                        checkpoint.triggerY1 = Math.round(checkpoint.triggerY1 / MapEditor.snapAmount) * MapEditor.snapAmount
+                    }   
+
+                    this.x =  MapEditor.screenX + checkpoint.triggerX1 - this.width/2
+                    this.y =  MapEditor.screenY + checkpoint.triggerY1 - this.height/2
+                }
+
+                if (MapEditor.selectedCheckpointIndex[1] == 2) {
+                    if (this.isPressed) {
+                        checkpoint.triggerX2 += touchHandler.dragAmountX
+                        checkpoint.triggerY2 += touchHandler.dragAmountY
+                    } else if (MapEditor.snapAmount > 0) {
+                        checkpoint.triggerX2 = Math.round(checkpoint.triggerX2 / MapEditor.snapAmount) * MapEditor.snapAmount
+                        checkpoint.triggerY2 = Math.round(checkpoint.triggerY2 / MapEditor.snapAmount) * MapEditor.snapAmount
+                    }
+
+                    this.x =  MapEditor.screenX + checkpoint.triggerX2 - this.width/2
+                    this.y =  MapEditor.screenY + checkpoint.triggerY2 - this.height/2
+                }
+
+                if (MapEditor.selectedCheckpointIndex[1] == 3) {
+                    if (this.isPressed) {
+                        checkpoint.x += touchHandler.dragAmountX
+                        checkpoint.y += touchHandler.dragAmountY
+                    } else if (MapEditor.snapAmount > 0) {
+                        checkpoint.x = Math.round(checkpoint.x / MapEditor.snapAmount) * MapEditor.snapAmount
+                        checkpoint.y = Math.round(checkpoint.y / MapEditor.snapAmount) * MapEditor.snapAmount
+                    }
+
+                    this.x =  MapEditor.screenX + checkpoint.x + 32 - this.width/2
+                    this.y =  MapEditor.screenY + checkpoint.y + 32 - this.height/2
+                }
+
+            }
         })
 
         btn_resize = new Button(0, 0, 35, "translate_button", "translate_button_pressed", 0, function() {
@@ -641,6 +713,11 @@ const UserInterface = {
                 if (platform.height < 10) {platform.height = 10}
 
             } else { // not touching -- just set it to default position
+                if (MapEditor.snapAmount > 0) {
+                    platform.width = Math.round(platform.width / MapEditor.snapAmount) * MapEditor.snapAmount
+                    platform.height = Math.round(platform.height / MapEditor.snapAmount) * MapEditor.snapAmount
+                }
+
                 this.x = platform.x + platform.width/2 + cornerX + MapEditor.screenX
                 this.y = platform.y + platform.height/2 + cornerY + MapEditor.screenY
             }
@@ -649,11 +726,19 @@ const UserInterface = {
         })
 
         btn_angleSlider = new SliderUI("canvasArea.canvas.width - 205", "205", 170, -50, 50, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex] : 0, function() {
+            if (MapEditor.snapAmount > 0) {this.updateState(Math.round(this.value / MapEditor.snapAmount) * MapEditor.snapAmount)}
             MapEditor.loadedMap.platforms[MapEditor.selectedPlatformIndex].angle = this.value
         })
 
         btn_playerAngleSlider = new SliderUI("canvasArea.canvas.width - 205", "205", 170, 0, 360, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.playerStart : 0, function() {
+            if (MapEditor.snapAmount > 0) {this.updateState(Math.round(this.value / MapEditor.snapAmount) * MapEditor.snapAmount)}
             MapEditor.loadedMap.playerStart.angle = this.value
+            
+        })
+
+        btn_checkpointAngleSlider = new SliderUI("canvasArea.canvas.width - 205", "220", 170, 0, 360, 1, "Angle", "black", MapEditor.loadedMap ? MapEditor.loadedMap.checkpoints[MapEditor.selectedCheckpointIndex[0]] : 0, function() {
+            if (MapEditor.snapAmount > 0) {this.updateState(Math.round(this.value / MapEditor.snapAmount) * MapEditor.snapAmount)}
+            MapEditor.loadedMap.checkpoints[MapEditor.selectedCheckpointIndex[0]].angle = this.value
         })
 
         btn_wall = new Button("canvasArea.canvas.width - 90", "225", 40, "checkbox", "checkbox_pressed", 1, function(sync) { 
@@ -673,10 +758,17 @@ const UserInterface = {
         })
 
         btn_delete_platform = new Button("canvasArea.canvas.width - 200", "300", 150, "delete_button", "delete_button_pressed", 0, function() {
+            if (MapEditor.selectedPlatformIndex != -1) { // platform being deleted
+                MapEditor.loadedMap.platforms.splice(MapEditor.selectedPlatformIndex, 1)
+                MapEditor.selectedPlatformIndex = -1; // No selected platform
+            }
+
+            if (MapEditor.selectedCheckpointIndex[0] != -1) { // checkpoint being deleted    
+                MapEditor.loadedMap.checkpoints.splice(MapEditor.selectedCheckpointIndex[0], 1)
+                MapEditor.selectedCheckpointIndex = [-1, 1]; // No selected checkpoints
+            }
             
-            MapEditor.loadedMap.platforms.splice(MapEditor.selectedPlatformIndex, 1)
-            MapEditor.selectedPlatformIndex = -1; // No selected platform
-            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_colors]
+            UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_add_checkpoint, btn_map_settings, btn_map_colors, btn_snappingSlider]
             
         })
 
@@ -862,7 +954,7 @@ const UserInterface = {
         btn_mainMenu = new Button(40, 40, 80, "back_button", "back_button_pressed", 0, function() { 
             if (UserInterface.gamestate == 7 && (MapEditor.editorState == 3 || MapEditor.editorState == 4)) { // in map settings/color pages and in map editor
 
-                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings] // btn_add_checkpoint
+                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings, btn_add_checkpoint, btn_snappingSlider]
                 MapEditor.editorState = 1 // might need to do more here - like deselect platforms and shit
 
             } else {
@@ -901,7 +993,7 @@ const UserInterface = {
 
     update : function() {
         
-        if (this.gamestate == 3 || MapEditor.editorState == 2 || MapEditor.editorState == 3 || MapEditor.editorState == 4) { // in settings page or in map editor pages
+        if (this.gamestate == 3 || MapEditor.loadedMap) { // in settings page or in map editor pages
             this.renderedButtons.forEach(button => { // LOOP RENDERED BUTTONS
                 if (button.constructor.name == "SliderUI") { // run .update() for only Sliders
                     button.update();
@@ -996,13 +1088,16 @@ const UserInterface = {
         // DEALING WITH MAP EDITOR: Clicking player, clicking platforms
         // IF IN MAP EDITOR but not in map select screen within editor OR in map settings/color screen
         if (clickedSidePanel == false && this.gamestate == 7 && MapEditor.editorState != 0 && MapEditor.editorState != 3 && MapEditor.editorState != 4) { 
-            
+
+            // RELEASED ON PLATFORM
             MapEditor.renderedPlatforms.forEach(platform => {
                 if (// if x and y touch is within platform (NOT ROTATED THOUGH)
                     x >= platform.x + MapEditor.screenX && x <= platform.x + platform.width + MapEditor.screenX &&
                     y >= platform.y + MapEditor.screenY && y <= platform.y + platform.height + MapEditor.screenY
                 ) {
                     MapEditor.selectedPlatformIndex = MapEditor.loadedMap.platforms.indexOf(platform)
+                    MapEditor.selectedCheckpointIndex = [-1,1]
+
                     this.renderedButtons = [
                         btn_exit_edit, 
                         btn_unselect, 
@@ -1012,7 +1107,8 @@ const UserInterface = {
                         btn_angleSlider,
                         btn_wall,
 
-                        btn_delete_platform
+                        btn_delete_platform,
+                        btn_snappingSlider
                     ]
                     
                     // SYNC ALL BUTTONS AND SLIDERS
@@ -1023,23 +1119,81 @@ const UserInterface = {
                 }
             })
             
-            if (
+            if ( // RELEASED on playerStart
                 x >= MapEditor.loadedMap.playerStart.x + MapEditor.screenX - 16 && x <= MapEditor.loadedMap.playerStart.x + 16 + MapEditor.screenX &&
                 y >= MapEditor.loadedMap.playerStart.y + MapEditor.screenY - 16 && y <= MapEditor.loadedMap.playerStart.y + 16 + MapEditor.screenY
             ) {
                 MapEditor.selectedPlatformIndex = -2 // -2 means player is selected. Maybe change this to be its own variable
+                MapEditor.selectedCheckpointIndex = [-1,1]
+
                 this.renderedButtons = [
                     btn_exit_edit, 
                     btn_unselect, 
                     
                     btn_translate,
                     btn_playerAngleSlider,
+                    btn_snappingSlider
                 ]
 
                 // SYNC ALL BUTTONS AND SLIDERS
                 btn_translate.func() // intially syncs the buttons position to the selected platform. Called whenever screen is scrolled too. not really needed here but avoids a 1 frame flash 
                 btn_playerAngleSlider.updateState(MapEditor.loadedMap.playerStart.angle)
             }
+
+            // RELEASED ON CHECKPOINT
+            MapEditor.loadedMap.checkpoints.forEach(checkpoint => {
+                let pressed = false;
+                let clickedPlayerRestart = false;
+                if ( // released checkpoint trigger 1
+                    Math.abs(checkpoint.triggerX1 + MapEditor.screenX - x) <= 20 &&
+                    Math.abs(checkpoint.triggerY1 + MapEditor.screenY - y) <= 20
+                ) {
+                    pressed = true;
+                    MapEditor.selectedCheckpointIndex[1] = 1
+                }
+
+                if ( // released on checkpoint trigger 2
+                    Math.abs(checkpoint.triggerX2 + MapEditor.screenX - x) <= 20 &&
+                    Math.abs(checkpoint.triggerY2 + MapEditor.screenY - y) <= 20
+                ) {
+                    pressed = true;
+                    MapEditor.selectedCheckpointIndex[1] = 2
+                }
+                
+                if ( // released on playerRestart
+                    Math.abs(checkpoint.x + MapEditor.screenX - x) <= 20 &&
+                    Math.abs(checkpoint.y + MapEditor.screenY - y) <= 20
+                ) {
+                    pressed = true;
+                    clickedPlayerRestart = true
+                    MapEditor.selectedCheckpointIndex[1] = 3
+                }
+                
+
+                if (pressed) { // Did click somewhere on the checkpoint
+
+                    MapEditor.selectedCheckpointIndex[0] = MapEditor.loadedMap.checkpoints.indexOf(checkpoint)
+                    MapEditor.selectedPlatformIndex = -1
+
+                    this.renderedButtons = [
+                        btn_exit_edit,
+                        btn_unselect,
+                        
+                        btn_translate,
+
+                        btn_delete_platform,
+                        btn_snappingSlider
+                    ]
+
+                    if (clickedPlayerRestart) {
+                        this.renderedButtons.push(btn_checkpointAngleSlider)
+                        btn_checkpointAngleSlider.updateState(MapEditor.loadedMap.checkpoints[MapEditor.selectedCheckpointIndex[0]].angle) // sync
+                    }
+                    
+                    // SYNC ALL BUTTONS AND SLIDERS
+                    btn_translate.func() // intially syncs the buttons position to the selected checkpoint. Called whenever screen is scrolled too. not really needed here but avoids a 1 frame flash 
+                }
+            })
         }
     },
 
@@ -1319,7 +1473,6 @@ class SliderUI {
     update() {
         if (touchHandler.dragging) { // User is touching the screen
             
-
             if (Math.abs(touchHandler.touchX - this.sliderX) < 30 && Math.abs(touchHandler.touchY - this.y) < 30) {
                 
                 if (touchHandler.touchX > this.x && touchHandler.touchX < this.x + this.width) {
@@ -1907,8 +2060,10 @@ const MapEditor = {
     screenX : 0, // where the view is located
     screenY : 0,
     renderedPlatforms : [],
-    selectedPlatformIndex : -1,
-    snapping : false,
+    selectedPlatformIndex : -1, // -1 = nothing, -2 = player
+    selectedCheckpointIndex : [-1,1],
+    // snapping : true, // dont need
+    snapAmount : 0,
     debugText : false,
 
     render : function() {
@@ -1918,6 +2073,11 @@ const MapEditor = {
             ctx.save() // moving to screenx and screeny
             ctx.translate(this.screenX, this.screenY);
 
+
+            ctx.fillRect(-2, -2, 4, 4) // (0,0) map origin
+
+
+            // RENDER PLATFORMS
             this.renderedPlatforms.forEach(platform => {
                 // DRAW PLATFORM TOP
                 ctx.save(); // ROTATING for Platforms
@@ -1959,9 +2119,108 @@ const MapEditor = {
             })
 
 
-            ctx.fillRect(-2, -2, 4, 4) // (0,0) map origin
+            // RENDER CHECKPOINTS
+            MapEditor.loadedMap.checkpoints.forEach(checkpoint => {
+                ctx.strokeStyle = "white"
+                ctx.fillStyle = "white"
+                ctx.lineWidth = 5
+                ctx.beginPath();
+                ctx.moveTo(checkpoint.triggerX1, checkpoint.triggerY1);
+                ctx.lineTo(checkpoint.triggerX2, checkpoint.triggerY2);
+                ctx.stroke();
 
-            // DRAWING THE PLAYER START
+                ctx.beginPath();
+                ctx.arc(checkpoint.triggerX1, checkpoint.triggerY1, 20, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(checkpoint.triggerX2, checkpoint.triggerY2, 20, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // playerRestart pos
+                ctx.save()
+                ctx.translate(checkpoint.x, checkpoint.y)
+                ctx.rotate(checkpoint.angle * Math.PI/180);
+                ctx.lineWidth = 3
+                ctx.strokeRect(-16,-16,32,32)
+    
+                // draw player arrow
+                ctx.lineWidth = 2
+                ctx.beginPath();
+                ctx.moveTo(8, 0);
+                ctx.lineTo(-5, -7);
+                ctx.lineTo(-5, 7);
+                ctx.lineTo(8, 0)
+                ctx.stroke();
+                ctx.restore()
+
+                // draw lines conecting to the playerRestart
+                ctx.beginPath();
+                ctx.setLineDash([6, 12]);
+                ctx.strokeStyle = "#FFFFFF88"
+                ctx.moveTo(checkpoint.triggerX1, checkpoint.triggerY1);
+                ctx.lineTo(checkpoint.x, checkpoint.y);
+                ctx.lineTo(checkpoint.triggerX2, checkpoint.triggerY2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+
+                if (checkpoint == this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]]) { // DRAWING THE BORDER AROUND parts of THE SELECTED Checkpoint
+                    
+                    
+                    if (this.selectedCheckpointIndex[1] == 1) { // trigger 1
+                        ctx.strokeStyle = "#000000"
+                        ctx.lineWidth = 6
+                        ctx.beginPath();
+                        ctx.arc(checkpoint.triggerX1, checkpoint.triggerY1, 20, 0, 2 * Math.PI);
+                        ctx.stroke();
+    
+                        ctx.strokeStyle = "#FFFFFF"
+                        ctx.lineWidth = 2
+                        ctx.beginPath();
+                        ctx.arc(checkpoint.triggerX1, checkpoint.triggerY1, 20, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    }
+
+                    if (this.selectedCheckpointIndex[1] == 2) { // trigger 2
+                        ctx.strokeStyle = "#000000"
+                        ctx.lineWidth = 6
+                        ctx.beginPath();
+                        ctx.arc(checkpoint.triggerX2, checkpoint.triggerY2, 20, 0, 2 * Math.PI);
+                        ctx.stroke();
+    
+                        ctx.strokeStyle = "#FFFFFF"
+                        ctx.lineWidth = 2
+                        ctx.beginPath();
+                        ctx.arc(checkpoint.triggerX2, checkpoint.triggerY2, 20, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    }
+
+                    if (this.selectedCheckpointIndex[1] == 3) { // player restart
+
+
+                        ctx.save()
+                        ctx.translate(checkpoint.x, checkpoint.y)
+                        ctx.rotate(checkpoint.angle * Math.PI/180);
+            
+                        ctx.strokeStyle = "#000000"
+                        ctx.lineWidth = 6
+                        ctx.strokeRect(-16, -16, 32, 32);
+                        
+                        ctx.strokeStyle = "#FFFFFF"
+                        ctx.lineWidth = 2
+                        ctx.strokeRect(-16, -16, 32, 32);
+                        ctx.restore()
+
+                    }
+
+
+                }
+
+            });
+
+
+            // RENDER THE PLAYER START
             ctx.save()
             ctx.translate(this.loadedMap.playerStart.x, this.loadedMap.playerStart.y)
             ctx.rotate(this.loadedMap.playerStart.angle * Math.PI/180);
@@ -2011,13 +2270,25 @@ const MapEditor = {
                     ctx.fillText("Position: " + this.loadedMap.playerStart.x + ", " + this.loadedMap.playerStart.y, canvasArea.canvas.width - 200, 120);
 
                     
-                } else { // platform is selected
+                }
+                
+                if (this.selectedPlatformIndex >= 0){ // platform is selected
                     
                     ctx.fillStyle = "#000000"
                     ctx.fillText("Platform", canvasArea.canvas.width - 200, 100);
                     ctx.fillText("Position: " + this.loadedMap.platforms[this.selectedPlatformIndex].x + ", " + this.loadedMap.platforms[this.selectedPlatformIndex].y, canvasArea.canvas.width - 200, 120);
                     ctx.fillText("Size: " + this.loadedMap.platforms[this.selectedPlatformIndex].width + ", " + this.loadedMap.platforms[this.selectedPlatformIndex].height, canvasArea.canvas.width - 200, 140);
                     ctx.fillText("Wall: " + (this.loadedMap.platforms[this.selectedPlatformIndex].wall?"Yes":"No"), canvasArea.canvas.width - 200, 240)
+  
+                }
+
+                if (this.selectedCheckpointIndex[0] >= 0){ // checkpoint is selected
+                    
+                    ctx.fillStyle = "#000000"
+                    ctx.fillText("Checkpoint", canvasArea.canvas.width - 200, 100);
+                    ctx.fillText("Trigger 1: " + this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]].triggerX1 + ", " + this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]].triggerY1, canvasArea.canvas.width - 200, 120);
+                    ctx.fillText("Trigger 2: " + this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]].triggerX2 + ", " + this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]].triggerY2, canvasArea.canvas.width - 200, 140);
+                    ctx.fillText("Respawn Pos: " + this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]].x + ", " + this.loadedMap.checkpoints[this.selectedCheckpointIndex[0]].y, canvasArea.canvas.width - 200, 160);
   
                 }
                 
@@ -2075,7 +2346,7 @@ const MapEditor = {
                 canvasArea.canvas.style.backgroundColor = this.loadedMap.style.backgroundColor; // set bg color here so it only triggers once not every render frame
                 document.body.style.backgroundColor = this.loadedMap.style.backgroundColor;
 
-                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings] // btn_add_checkpoint
+                UserInterface.renderedButtons = [btn_exit_edit, btn_add_platform, btn_map_colors, btn_map_settings, btn_add_checkpoint, btn_snappingSlider]
 
                 this.screenX = -this.loadedMap.playerStart.x + canvasArea.canvas.width/2;
                 this.screenY = -this.loadedMap.playerStart.y + canvasArea.canvas.height/2;
@@ -2088,7 +2359,7 @@ const MapEditor = {
 
             // SCROLLING THE SCREEN OR USING THE GIZMO's buttons/slider
             if (touchHandler.dragging == 1) {
-                if (!btn_translate.isPressed && !btn_resize.isPressed && btn_angleSlider.confirmed && btn_playerAngleSlider.confirmed) {
+                if (!btn_translate.isPressed && !btn_resize.isPressed && btn_angleSlider.confirmed && btn_playerAngleSlider.confirmed && btn_checkpointAngleSlider.confirmed && btn_snappingSlider.confirmed) {
                     this.scrollX_vel += touchHandler.dragAmountX
                     this.scrollY_vel += touchHandler.dragAmountY
                 }
@@ -2129,26 +2400,26 @@ const MapEditor = {
         }
 
 
-
         if (this.editorState == 2) { // update translate and resize buttons every frame
-            if (this.selectedPlatformIndex != -1) {
+
+            if (UserInterface.renderedButtons.includes(btn_translate)) {
                 btn_translate.func() 
-                if (this.selectedPlatformIndex != -2) { // resize isnt needed when playerStart selected
-                    btn_resize.func()
-                }
+            }
+            
+            if (UserInterface.renderedButtons.includes(btn_resize)) {
+                btn_resize.func()
             }
         }
 
 
         // changing the editorState
-        if (this.editorState == 1 && this.selectedPlatformIndex !== -1) {
+        if (this.editorState == 1 && (this.selectedPlatformIndex != -1 || this.selectedCheckpointIndex[0] != -1)) {
             this.editorState = 2;
         }
 
-        if (this.editorState == 2 && this.selectedPlatformIndex == -1) {
+        if (this.editorState == 2 && (this.selectedPlatformIndex == -1 && this.selectedCheckpointIndex[0] == -1)) {
             this.editorState = 1;
         }
-
 
     
     },
@@ -3401,12 +3672,12 @@ class Player {
             
             // this is a hack to make gain consistent between fps changes BAD BAD BAD BS
             // https://www.desmos.com/calculator/k1uc1yai14
-            this.addSpeed *= (0.25 * (Math.cbrt(dt)+3)) 
+            this.addSpeed *= (0.25 * (Math.cbrt(dt)+3))
             
             if (this.addSpeed > airAcceleration * dt) {this.addSpeed = airAcceleration * dt; console.log("maxspeed clipped by AA")} // addspeed is to big and needs to be limited by airacceleration value
             if (this.addSpeed <= 0) {this.addSpeed = 0; console.log("zero addspeed")} // currentSpeedProjected is greater than max_speed. dont add speed
             
-        
+            
             // addSpeed is a scaler for wishdir. if addspeed == 0 no wishdir is applied
             this.velocity.x += (this.wishDir.x * this.addSpeed)
             this.velocity.y += (this.wishDir.y * this.addSpeed)
@@ -3427,7 +3698,7 @@ class Player {
                 AudioHandler.jump();
                 if (!this.checkCollision(map.renderedPlatforms)) {
                     AudioHandler.splash();
-                    // this.teleport();
+                    this.teleport();
                 }
             } else {
                 this.jumpValue += this.jumpVelocity * dt;
